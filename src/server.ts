@@ -1,7 +1,10 @@
 
 import net from 'net'
 
-
+let map = new Map<string, any>();
+function isValidCommand(command: string): boolean {
+  return (command === "SET" || command === "GET" || command === "DEL")
+}
 function handleSET(command: string[]): string {
   map.set(command[1], command[2])
   return "+OK\r\n"
@@ -42,14 +45,32 @@ function formatCommand(command: string): string[] {
   return result;
 
 }
-let map = new Map<string, any>();
+function handleCommand(command: string): string {
 
+  const formatedCommand = formatCommand(command);
+
+  if (isValidCommand(formatedCommand[0])) {
+    if (formatedCommand[0] === "SET") {
+      return handleSET(formatedCommand)
+    }
+    else if (formatedCommand[0] === "GET") {
+      return handleGET(formatedCommand)
+    }
+    else if (formatedCommand[0] === "DEL") {
+      return handleDEL(formatedCommand)
+    }
+  }
+  return `-ERR unknown command${formatedCommand[0]}`
+}
 const server = net.createServer((socket) => {
   console.log('client connected');
   socket.on('data', (data) => {
-    console.log(formatCommand(data.toString()))
-  });
-});
+    const result = handleCommand(data.toString());
+
+    console.log(`Map  after = ${[...map.entries()]}`)
+    socket.write(result)
+  })
+})
 server.listen(8080, () => {
   console.log('server listening on port 8080');
 });
