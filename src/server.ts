@@ -15,6 +15,20 @@ function handleGET(command: string[]): string {
   }
 }
 
+function handleDEL(command: string[]): string {
+
+  let count = 0;
+  for (let i = 1; i < command.length; i++) {
+
+    if (map.has(command[i])) {
+      map.delete(command[i])
+      count++;
+    }
+
+  }
+  return `:${count}\r\n`;
+}
+
 function formatCommand(command: string): string[] {
 
   let formatedCommand = command.split('\r\n');
