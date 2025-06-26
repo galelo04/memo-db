@@ -6,6 +6,14 @@ function handleSET(command: string[]): string {
   map.set(command[1], command[2])
   return "+OK\r\n"
 }
+function handleGET(command: string[]): string {
+  if (map.has(command[1])) {
+    return `$${map.get(command[1]).length}\r\n${map.get(command[1])}\r\n`
+  }
+  else {
+    return "_\r\n"
+  }
+}
 
 function formatCommand(command: string): string[] {
 
