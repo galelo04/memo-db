@@ -16,8 +16,7 @@ function formatCommand(command: string): string[] {
   return result;
 
 }
-
-
+let map = new Map<string, any>();
 
 const server = net.createServer((socket) => {
   console.log('client connected');
