@@ -19,13 +19,12 @@ function formatCommand(command: string): string[] {
 
 
 
-const server = net.createServer((socket) => { //'connection' listener
+const server = net.createServer((socket) => {
   console.log('client connected');
-  socket.on('end', () => {
-    console.log('client disconnected');
+  socket.on('data', (data) => {
+    console.log(formatCommand(data.toString()))
   });
-  socket.write('hello\r\n');
 });
-server.listen(8080, function() { //'listening' listener
-  console.log('server bound');
+server.listen(8080, () => {
+  console.log('server listening on port 8080');
 });
