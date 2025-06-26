@@ -32,43 +32,48 @@ function handleDEL(command: string[]): string {
   return `:${count}\r\n`;
 }
 
-function formatCommand(command: string): string[] {
+async function formatCommand(command: string): Promise<string[]> {
+  return new Promise((resolve) => {
+    process.nextTick(() => {
 
-  let formatedCommand = command.split('\r\n');
-  let num = Number(formatedCommand[0].slice(1))
-  let result = []
-  let index = 2;
-  for (let i = 0; i < num; i++) {
-    result.push(formatedCommand[index])
-    index += 2;
-  }
-  return result;
-
+      let formatedCommand = command.split('\r\n');
+      let num = Number(formatedCommand[0].slice(1))
+      let result = []
+      let index = 2;
+      for (let i = 0; i < num; i++) {
+        result.push(formatedCommand[index])
+        index += 2;
+      }
+      resolve(result)
+    })
+  })
 }
-function handleCommand(command: string): string {
+async function handleCommand(command: string): Promise<string> {
 
-  const formatedCommand = formatCommand(command);
+  return formatCommand(command).then(formatedCommand => {
 
-  if (isValidCommand(formatedCommand[0])) {
-    if (formatedCommand[0] === "SET") {
-      return handleSET(formatedCommand)
+    if (isValidCommand(formatedCommand[0])) {
+      if (formatedCommand[0] === "SET") {
+        return handleSET(formatedCommand)
+      }
+      else if (formatedCommand[0] === "GET") {
+        return handleGET(formatedCommand)
+      }
+      else if (formatedCommand[0] === "DEL") {
+        return handleDEL(formatedCommand)
+      }
     }
-    else if (formatedCommand[0] === "GET") {
-      return handleGET(formatedCommand)
-    }
-    else if (formatedCommand[0] === "DEL") {
-      return handleDEL(formatedCommand)
-    }
-  }
-  return `-ERR unknown command${formatedCommand[0]}`
+    return `-ERR unknown command${formatedCommand[0]}`
+  });
 }
 const server = net.createServer((socket) => {
   console.log('client connected');
   socket.on('data', (data) => {
-    const result = handleCommand(data.toString());
+    handleCommand(data.toString()).then((result) => {
 
-    console.log(`Map  after = ${[...map.entries()]}`)
-    socket.write(result)
+      console.log(`Map  after = ${[...map.entries()]}`)
+      socket.write(result)
+    })
   })
 })
 server.listen(8080, () => {
