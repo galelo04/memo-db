@@ -2,6 +2,10 @@
 import net from 'net'
 
 
+function handleSET(command: string[]): string {
+  map.set(command[1], command[2])
+  return "+OK\r\n"
+}
 
 function formatCommand(command: string): string[] {
 
