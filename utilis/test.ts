@@ -1,13 +1,13 @@
-console.log("commandUtilis loaded ✅");
-export interface tryParseResult {
+interface tryParseResult {
   remainingBuffer: Buffer,
   parsedCommand: string[] | null,
   error: string | null
 }
-
-export function tryParse(buffer: Buffer): tryParseResult {
+function tryParse(buffer: Buffer): tryParseResult {
   let bufferPointer = 0
+  let stringdd = buffer.toString()
   let result: string[] = []
+  let test = String.fromCharCode(buffer[0])
   if (String.fromCharCode(buffer[0]) !== '*') {
     return { remainingBuffer: buffer, parsedCommand: null, error: "undefined command *****" }
   }
@@ -25,9 +25,9 @@ export function tryParse(buffer: Buffer): tryParseResult {
       if (delOffset === -1) {
         return { remainingBuffer: buffer, parsedCommand: null, error: null }
       }
-      if (String.fromCharCode(buffer[bufferPointer]) !== '$') {
-        return { remainingBuffer: buffer, parsedCommand: null, error: "undefined command $$$$$$$$" }
-      }
+      // if (String.fromCharCode(buffer[bufferPointer]) !== '$') {
+      //   return { remainingBuffer: buffer, parsedCommand: null, error: "undefined command $$$$$$$$" }
+      // }
       argLength = Number(buffer.slice(bufferPointer + 1, delOffset))//plus one for the $ char
       bufferPointer = delOffset + 2
     } else {
@@ -51,5 +51,4 @@ export function tryParse(buffer: Buffer): tryParseResult {
   }
   return { remainingBuffer: buffer.slice(bufferPointer), parsedCommand: result, error: null }
 }
-
-
+tryParse(Buffer.from('*3\r\n$3\r\nSET\r\n$3\r\nval\r\n$3\r\nvar\r\n'))

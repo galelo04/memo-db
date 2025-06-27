@@ -1,6 +1,7 @@
-
+import { tryParse } from '../utilis/commandUtilis.ts'
+import type { tryParseResult } from '../utilis/commandUtilis.ts'
 import net from 'net'
-
+let buffer = Buffer.alloc(0)
 let map = new Map<string, any>();
 function isValidCommand(command: string): boolean {
   return (command === "SET" || command === "GET" || command === "DEL")
@@ -32,50 +33,46 @@ function handleDEL(command: string[]): string {
   return `:${count}\r\n`;
 }
 
-async function formatCommand(command: string): Promise<string[]> {
-  return new Promise((resolve) => {
-    process.nextTick(() => {
+function handleCommand(command: string[]): Promise<string> {
 
-      let formatedCommand = command.split('\r\n');
-      let num = Number(formatedCommand[0].slice(1))
-      let result = []
-      let index = 2;
-      for (let i = 0; i < num; i++) {
-        result.push(formatedCommand[index])
-        index += 2;
-      }
-      resolve(result)
-    })
-  })
-}
-async function handleCommand(command: string): Promise<string> {
+  return new Promise((resolve, reject) => {
 
-  return formatCommand(command).then(formatedCommand => {
-
-    if (isValidCommand(formatedCommand[0])) {
-      if (formatedCommand[0] === "SET") {
-        return handleSET(formatedCommand)
+    if (isValidCommand(command[0])) {
+      if (command[0] === "SET") {
+        return resolve(handleSET(command))
       }
-      else if (formatedCommand[0] === "GET") {
-        return handleGET(formatedCommand)
+      else if (command[0] === "GET") {
+        return resolve(handleGET(command))
       }
-      else if (formatedCommand[0] === "DEL") {
-        return handleDEL(formatedCommand)
+      else if (command[0] === "DEL") {
+        return resolve(handleDEL(command))
       }
     }
-    return `-ERR unknown command${formatedCommand[0]}`
-  });
+    reject(`-ERR unknown command${command[0]}`)
+  })
 }
-const server = net.createServer((socket) => {
+const server = net.createServer(async (socket) => {
   console.log('client connected');
   socket.on('data', (data) => {
-    handleCommand(data.toString()).then((result) => {
+    buffer = Buffer.concat([buffer, data])
+    let parseResult: tryParseResult = tryParse(buffer);
+    while (buffer.length !== 0 && parseResult.parsedCommand !== null && parseResult.error === null) {
+      buffer = Buffer.alloc(0)
+      buffer = Buffer.concat([buffer, parseResult.remainingBuffer])
+      handleCommand(parseResult.parsedCommand).then((result) => {
 
-      console.log(`Map  after = ${[...map.entries()]}`)
-      socket.write(result)
-    })
+        console.log(`Map  after = ${[...map.entries()]}`)
+        socket.write(result)
+      }).catch((error) => {
+        socket.write(`-${error}`)
+      })
+    }
+    if (parseResult.error !== null) {
+      socket.write(`-${parseResult.error}`)
+    }
   })
 })
+
 server.listen(8080, () => {
   console.log('server listening on port 8080');
 });

@@ -2,7 +2,7 @@ import readline from 'readline/promises'
 import net from 'net'
 
 
-const client = net.createConnection({ port: 3000 });
+const client = net.createConnection({ port: 8080 });
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -22,7 +22,9 @@ function encodeCommand(command: string): string {
 async function askAndSend() {
 
   const answer = await rl.question("> ")
-  client.write(encodeCommand(answer))
+  let encoded = encodeCommand(answer)
+  // encoded = encoded.concat(encoded)
+  client.write(encoded)
 }
 
 client.on('connect', () => {
