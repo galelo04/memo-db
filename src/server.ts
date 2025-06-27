@@ -37,15 +37,16 @@ function handleCommand(command: string[]): Promise<string> {
 
   return new Promise((resolve, reject) => {
 
-    if (isValidCommand(command[0])) {
-      if (command[0] === "SET") {
-        return resolve(handleSET(command))
-      }
-      else if (command[0] === "GET") {
-        return resolve(handleGET(command))
-      }
-      else if (command[0] === "DEL") {
-        return resolve(handleDEL(command))
+    if (isValidCommand(command[0].toUpperCase())) {
+      switch (command[0].toUpperCase()) {
+        case "SET":
+          return resolve(handleSET(command))
+
+        case "GET":
+          return resolve(handleGET(command))
+
+        case "DEL":
+          return resolve(handleDEL(command))
       }
     }
     reject(`-ERR unknown command${command[0]}`)
