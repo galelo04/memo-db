@@ -51,25 +51,32 @@ function handleCommand(command: string[]): Promise<string> {
     reject(`-ERR unknown command${command[0]}`)
   })
 }
-const server = net.createServer(async (socket) => {
+const server = net.createServer((socket) => {
+
+  async function processBuffer() {
+    while (true) {
+      const result: tryParseResult = tryParse(buffer);
+      if (result.error) {
+        socket.write(`-${result.error}\r\n`);
+        break;
+      }
+      if (result.parsedCommand === null) {
+        break;
+      }
+      buffer = result.remainingBuffer;
+      try {
+        const response = await handleCommand(result.parsedCommand);
+        console.log(`Map  after = ${[...map.entries()]}`)
+        socket.write(response);
+      } catch (err: any) {
+        socket.write(`-ERR ${err.message || err}\r\n`);
+      }
+    }
+  }
   console.log('client connected');
   socket.on('data', (data) => {
     buffer = Buffer.concat([buffer, data])
-    let parseResult: tryParseResult = tryParse(buffer);
-    while (buffer.length !== 0 && parseResult.parsedCommand !== null && parseResult.error === null) {
-      buffer = Buffer.alloc(0)
-      buffer = Buffer.concat([buffer, parseResult.remainingBuffer])
-      handleCommand(parseResult.parsedCommand).then((result) => {
-
-        console.log(`Map  after = ${[...map.entries()]}`)
-        socket.write(result)
-      }).catch((error) => {
-        socket.write(`-${error}`)
-      })
-    }
-    if (parseResult.error !== null) {
-      socket.write(`-${parseResult.error}`)
-    }
+    processBuffer()
   })
 })
 
