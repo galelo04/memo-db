@@ -1,18 +1,29 @@
 import { tryParse } from '../utilis/commandUtilis.ts'
 import type { tryParseResult } from '../utilis/commandUtilis.ts'
+import { Store } from '../utilis/store.ts'
 import net from 'net'
 let buffer = Buffer.alloc(0)
-let map = new Map<string, any>();
+let store = new Store()
 function isValidCommand(command: string): boolean {
   return (command === "SET" || command === "GET" || command === "DEL")
 }
 function handleSET(command: string[]): string {
-  map.set(command[1], command[2])
+  if (command.length === 3) {
+    store.insertEntry(command[1], command[2])
+  }
+  else if (command.length === 5) {
+    const now = new Date();
+    const secondsToAdd = Number(command[4]);
+
+    const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
+    store.insertEntry(command[1], command[2], expireDate)
+  }
   return "+OK\r\n"
 }
 function handleGET(command: string[]): string {
-  if (map.has(command[1])) {
-    return `$${map.get(command[1]).length}\r\n${map.get(command[1])}\r\n`
+  const entry = store.getValue(command[1])
+  if (entry) {
+    return `$${entry.length}\r\n${entry}\r\n`
   }
   else {
     return "_\r\n"
@@ -24,11 +35,7 @@ function handleDEL(command: string[]): string {
   let count = 0;
   for (let i = 1; i < command.length; i++) {
 
-    if (map.has(command[i])) {
-      map.delete(command[i])
-      count++;
-    }
-
+    count += store.deleteEntry(command[i])
   }
   return `:${count}\r\n`;
 }
@@ -67,7 +74,7 @@ const server = net.createServer((socket) => {
       buffer = result.remainingBuffer;
       try {
         const response = await handleCommand(result.parsedCommand);
-        console.log(`Map  after = ${[...map.entries()]}`)
+        store.print()
         socket.write(response);
       } catch (err: any) {
         socket.write(`-ERR ${err.message || err}\r\n`);
