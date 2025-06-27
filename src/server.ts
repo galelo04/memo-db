@@ -5,7 +5,7 @@ import net from 'net'
 let buffer = Buffer.alloc(0)
 let store = new Store()
 function isValidCommand(command: string): boolean {
-  return (command === "SET" || command === "GET" || command === "DEL")
+  return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE")
 }
 function handleSET(command: string[]): string {
   if (command.length === 3) {
@@ -39,7 +39,14 @@ function handleDEL(command: string[]): string {
   }
   return `:${count}\r\n`;
 }
+function handleEXPIRE(command: string[]): string {
+  const now = new Date();
+  const secondsToAdd = Number(command[2]);
 
+  const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
+
+  return `:${store.expireEntry(command[1], expireDate)}`
+}
 function handleCommand(command: string[]): Promise<string> {
 
   return new Promise((resolve, reject) => {
@@ -54,6 +61,8 @@ function handleCommand(command: string[]): Promise<string> {
 
         case "DEL":
           return resolve(handleDEL(command))
+        case "EXPIRE":
+          return resolve(handleEXPIRE(command))
       }
     }
     reject(`-ERR unknown command${command[0]}`)
