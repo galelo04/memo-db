@@ -1,13 +1,15 @@
 import { tryParse } from '../utilis/commandUtilis.ts'
 import type { tryParseResult } from '../utilis/commandUtilis.ts'
-import { Store } from '../utilis/store.ts'
+import { RedisStore } from '../utilis/redisStore.ts'
+import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
+import type { Response } from '../utilis/responseUtilis.ts'
 import net from 'net'
 let buffer = Buffer.alloc(0)
-let store = new Store()
+let store = new RedisStore()
 function isValidCommand(command: string): boolean {
   return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE")
 }
-function handleSET(command: string[]): string {
+function handleSET(command: string[]): Response {
   if (command.length === 3) {
     store.insertEntry(command[1], command[2])
   }
@@ -18,36 +20,36 @@ function handleSET(command: string[]): string {
     const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
     store.insertEntry(command[1], command[2], expireDate)
   }
-  return "+OK\r\n"
+  return { type: ResponseType.simpleString, data: ["OK"] }
 }
-function handleGET(command: string[]): string {
+function handleGET(command: string[]): Response {
   const entry = store.getValue(command[1])
   if (entry) {
-    return `$${entry.length}\r\n${entry}\r\n`
+    return { type: ResponseType.bulkString, data: [entry.length, entry] }
   }
   else {
-    return "_\r\n"
+    return { type: ResponseType.null, data: [] }
   }
 }
 
-function handleDEL(command: string[]): string {
+function handleDEL(command: string[]): Response {
 
   let count = 0;
   for (let i = 1; i < command.length; i++) {
 
     count += store.deleteEntry(command[i])
   }
-  return `:${count}\r\n`;
+  return { type: ResponseType.integer, data: [count.toString()] }
 }
-function handleEXPIRE(command: string[]): string {
+function handleEXPIRE(command: string[]): Response {
   const now = new Date();
   const secondsToAdd = Number(command[2]);
 
   const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
-
-  return `:${store.expireEntry(command[1], expireDate)}`
+  const expireResult = store.expireEntry(command[1], expireDate);
+  return { type: ResponseType.integer, data: [expireResult.toString()] }
 }
-function handleCommand(command: string[]): Promise<string> {
+function handleCommand(command: string[]): Promise<Response> {
 
   return new Promise((resolve, reject) => {
 
@@ -83,8 +85,9 @@ const server = net.createServer((socket) => {
       buffer = result.remainingBuffer;
       try {
         const response = await handleCommand(result.parsedCommand);
+        const formatedResponse = formatResponse(response)
         store.print()
-        socket.write(response);
+        socket.write(formatedResponse);
       } catch (err: any) {
         socket.write(`-ERR ${err.message || err}\r\n`);
       }
