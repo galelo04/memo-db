@@ -48,34 +48,34 @@ function handleEXPIRE(command: string[]): Response {
   const expireResult = store.expireEntry(command[1], expireDate);
   return { type: ResponseType.integer, data: [expireResult.toString()] }
 }
-function handleCommand(command: string[]): Promise<Response> {
+async function handleCommand(command: string[]): Promise<Response> {
+  if (!isValidCommand(command[0].toUpperCase())) {
+    throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
+  }
 
-  return new Promise((resolve, reject) => {
-
-    if (isValidCommand(command[0].toUpperCase())) {
-      switch (command[0].toUpperCase()) {
-        case "SET":
-          return resolve(handleSET(command))
-
-        case "GET":
-          return resolve(handleGET(command))
-
-        case "DEL":
-          return resolve(handleDEL(command))
-        case "EXPIRE":
-          return resolve(handleEXPIRE(command))
-      }
-    }
-    reject(`-ERR unknown command${command[0]}`)
-  })
+  switch (command[0].toUpperCase()) {
+    case "SET":
+      return handleSET(command);
+    case "GET":
+      return handleGET(command);
+    case "DEL":
+      return handleDEL(command);
+    case "EXPIRE":
+      return handleEXPIRE(command);
+    default:
+      throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
+  }
 }
 const server = net.createServer((socket) => {
 
+  let buffer = Buffer.alloc(0)
   async function processBuffer() {
     while (true) {
+      let response: Response
+
       const result: tryParseResult = tryParse(buffer);
       if (result.error) {
-        socket.write(`-${result.error}\r\n`);
+        response = { type: ResponseType.error, data: [`${result.error}`] }
         break;
       }
       if (result.parsedCommand === null) {
@@ -83,13 +83,12 @@ const server = net.createServer((socket) => {
       }
       buffer = result.remainingBuffer;
       try {
-        const response = await handleCommand(result.parsedCommand);
-        const formatedResponse = formatResponse(response)
+        response = await handleCommand(result.parsedCommand);
         store.print()
-        socket.write(formatedResponse);
       } catch (err: any) {
-        socket.write(`-ERR ${err.message || err}\r\n`);
+        response = { type: ResponseType.error, data: [`${err.message || err}`] }
       }
+      socket.write(formatResponse(response))
     }
   }
   console.log('client connected');
