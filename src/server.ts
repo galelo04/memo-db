@@ -4,7 +4,6 @@ import { RedisStore } from '../utilis/redisStore.ts'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
 import type { Response } from '../utilis/responseUtilis.ts'
 import net from 'net'
-let buffer = Buffer.alloc(0)
 let store = new RedisStore()
 function isValidCommand(command: string): boolean {
   return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE")
