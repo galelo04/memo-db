@@ -2,7 +2,7 @@ export interface storeEntry {
   value: any,
   expireDate?: Date
 }
-export class Store {
+export class RedisStore {
   map: Map<string, storeEntry>
   constructor() {
     this.map = new Map<string, storeEntry>();
