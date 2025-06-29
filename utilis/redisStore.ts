@@ -13,8 +13,10 @@ export class RedisStore {
   getValue(key: string): any | undefined {
     if (this.map.has(key)) {
       const entryExpireDate = this.map.get(key)?.expireDate;
-      if (entryExpireDate && entryExpireDate < new Date())
-        return this.map.get(key)
+      if (!entryExpireDate || (entryExpireDate && entryExpireDate < new Date()))
+        return this.map.get(key)?.value
+      if (entryExpireDate && entryExpireDate > new Date())
+        this.map.delete(key)
     }
     return undefined
   }

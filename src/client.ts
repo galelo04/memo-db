@@ -23,7 +23,7 @@ async function askAndSend() {
 
   const answer = await rl.question("> ")
   let encoded = encodeCommand(answer)
-  encoded = encoded.concat(encoded)
+  // encoded = encoded.concat(encoded)
   client.write(encoded)
 }
 
