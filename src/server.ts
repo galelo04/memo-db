@@ -6,7 +6,7 @@ import type { Response } from '../utilis/responseUtilis.ts'
 import net from 'net'
 let store = new RedisStore()
 function isValidCommand(command: string): boolean {
-  return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE")
+  return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE" || command === "CONFIG")
 }
 function handleSET(command: string[]): Response {
   if (command.length === 3) {
@@ -47,6 +47,9 @@ function handleEXPIRE(command: string[]): Response {
   const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
   const expireResult = store.expireEntry(command[1], expireDate);
   return { type: ResponseType.integer, data: [expireResult.toString()] }
+}
+function handleConfigGet(command: string[]): Response {
+  store.getConfig(command[1])
 }
 async function handleCommand(command: string[]): Promise<Response> {
   if (!isValidCommand(command[0].toUpperCase())) {
