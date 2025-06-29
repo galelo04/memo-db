@@ -4,8 +4,12 @@ export interface storeEntry {
 }
 export class RedisStore {
   map: Map<string, storeEntry>
+  configMap: Map<string, string>
   constructor() {
     this.map = new Map<string, storeEntry>();
+    this.configMap = new Map<string, string>();
+    this.configMap.set("dir", "/tmp/redis-data")
+    this.configMap.set("dbfilename", "rdbfile")
   }
   insertEntry(key: string, value: any, expireDate?: Date): void {
     this.map.set(key, { value, expireDate })
@@ -43,5 +47,12 @@ export class RedisStore {
     for (let [key, value] of this.map) {
       console.log(`key: ${key}  value: ${value.value} expireDate: ${value.expireDate ? value.expireDate : "N/A"}`)
     }
+  }
+  setConfig(key: string, value: string) {
+    this.configMap.set(key, value)
+  }
+  getConfig(key: string) {
+    if (this.configMap.has(key))
+      return this.configMap.get(key)
   }
 }
