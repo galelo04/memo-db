@@ -19,7 +19,7 @@ function handleSET(command: string[]): Response {
     const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
     store.insertEntry(command[1], command[2], expireDate)
   }
-  return { type: ResponseType.simpleString, data: ["OK"] }
+  return { type: ResponseType.simpleString, data: [{ type: ResponseType.simpleString, value: "OK" }] }
 }
 function handleGET(command: string[]): Response {
   const entry = store.getValue(command[1])
@@ -38,7 +38,7 @@ function handleDEL(command: string[]): Response {
 
     count += store.deleteEntry(command[i])
   }
-  return { type: ResponseType.integer, data: [count.toString()] }
+  return { type: ResponseType.integer, data: [{ type: ResponseType.integer, value: count.toString() }] }
 }
 function handleEXPIRE(command: string[]): Response {
   const now = new Date();
@@ -46,7 +46,7 @@ function handleEXPIRE(command: string[]): Response {
 
   const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
   const expireResult = store.expireEntry(command[1], expireDate);
-  return { type: ResponseType.integer, data: [expireResult.toString()] }
+  return { type: ResponseType.integer, data: [{ type: ResponseType.integer, value: expireResult.toString() }] }
 }
 function handleConfigGet(command: string[]): Response {
   store.getConfig(command[1])
@@ -78,7 +78,7 @@ const server = net.createServer((socket) => {
 
       const result: tryParseResult = tryParse(buffer);
       if (result.error) {
-        response = { type: ResponseType.error, data: [`${result.error}`] }
+        response = { type: ResponseType.error, data: [{ type: ResponseType.error, value: `${result.error}` }] }
         break;
       }
       if (result.parsedCommand === null) {
@@ -89,7 +89,7 @@ const server = net.createServer((socket) => {
         response = await handleCommand(result.parsedCommand);
         store.print()
       } catch (err: any) {
-        response = { type: ResponseType.error, data: [`${err.message || err}`] }
+        response = { type: ResponseType.error, data: [{ type: ResponseType.error, value: `${err.message || err}` }] }
       }
       socket.write(formatResponse(response))
     }
