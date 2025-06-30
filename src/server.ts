@@ -46,10 +46,24 @@ function handleEXPIRE(command: string[]): Response {
 
   const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
   const expireResult = store.expireEntry(command[1], expireDate);
-  return { type: ResponseType.integer, data: [{ type: ResponseType.integer, value: expireResult.toString() }] }
+  return { type: ResponseType.integer, data: [expireResult.toString()] }
 }
 function handleConfigGet(command: string[]): Response {
-  store.getConfig(command[1])
+  let result: Response[] = []
+  for (let i = 2; i < command.length; i++) {
+    let config = store.getConfig(command[i]);
+    if (config) {
+
+
+      result.push({ type: ResponseType.bulkString, data: [command[i].length.toString(), command[i]] })
+      result.push({ type: ResponseType.bulkString, data: [config.length.toString(), config] })
+    }
+  }
+  return { type: ResponseType.map, data: result }
+}
+function handleConfigSet(command: string[]): Response {
+  store.setConfig(command[2], command[3])
+  return { type: ResponseType.simpleString, data: ["OK"] }
 }
 async function handleCommand(command: string[]): Promise<Response> {
   if (!isValidCommand(command[0].toUpperCase())) {
@@ -65,6 +79,11 @@ async function handleCommand(command: string[]): Promise<Response> {
       return handleDEL(command);
     case "EXPIRE":
       return handleEXPIRE(command);
+    case "CONFIG":
+      if (command[1].toUpperCase() === "SET")
+        return handleConfigSet(command)
+      else if (command[1].toUpperCase() === "GET")
+        return handleConfigGet(command)
     default:
       throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
   }
