@@ -100,7 +100,7 @@ const server = net.createServer((socket) => {
         response = { type: ResponseType.error, data: [`${result.error}`] }
         break;
       }
-      if (result.parsedCommand === null) {
+      if (!result.parsedCommand) {
         break;
       }
       buffer = result.remainingBuffer;
