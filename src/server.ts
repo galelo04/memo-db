@@ -7,6 +7,7 @@ import type { Response } from '../utilis/responseUtilis.ts'
 import net, { Socket } from 'net'
 import { promises as fsPromises } from 'fs'
 import { join } from 'path'
+import minimist from 'minimist'
 
 async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) => Promise<Response>, socket: Socket, AOFdir?: string, AOFFileName?: string) {
   while (true) {
@@ -38,7 +39,9 @@ async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) 
 }
 
 async function main() {
-
+  const argv = minimist(process.argv.slice(2))
+  const PORT = argv.port | 8080;
+  console.log(argv)
   const store = new RedisStore()
   const { handleCommand } = createCommandHandlers(store)
   const AOFFileName = store.getConfig('aof-fileName');
@@ -59,8 +62,8 @@ async function main() {
     })
   })
 
-  server.listen(8080, () => {
-    console.log('server listening on port 8080');
+  server.listen(PORT, () => {
+    console.log(`server listening on port ${PORT}`);
   });
 }
 
