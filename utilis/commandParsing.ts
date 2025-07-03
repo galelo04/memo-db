@@ -77,16 +77,21 @@ export function tryParse(buffer: Buffer): tryParseResult {
 export function parseAOFFile(filePath: string): string[][] {
 
   const allCommands: string[][] = [];
-  let aofFileContent = readFileSync(filePath)
-  while (aofFileContent.length > 0) {
-    const result = tryParse(aofFileContent)
-    if (result.error) {
-      throw new Error(result.error)
+  try {
+
+    let aofFileContent = readFileSync(filePath)
+    while (aofFileContent.length > 0) {
+      const result = tryParse(aofFileContent)
+      if (result.error) {
+        throw new Error(result.error)
+      }
+      if (result.parsedCommand) {
+        allCommands.push(result.parsedCommand)
+      }
+      aofFileContent = result.remainingBuffer
     }
-    if (result.parsedCommand) {
-      allCommands.push(result.parsedCommand)
-    }
-    aofFileContent = result.remainingBuffer
+    return allCommands;
+  } catch (error: any) {
+    throw new Error(error)
   }
-  return allCommands;
 }
