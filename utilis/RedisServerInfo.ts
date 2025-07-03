@@ -17,6 +17,7 @@ export class RedisServerInfoBuilder {
   }
   setPort(port: number) {
     this._port = port
+    return this
   }
   build() {
     return new RedisServerInfo(

@@ -1,6 +1,7 @@
 import type { KeyValueStore } from './storeInterface.ts'
 import { ResponseType } from './responseUtilis.ts'
 import type { Response } from './responseUtilis.ts'
+import { RedisServerInfo } from './RedisServerInfo.ts';
 const validCommands = new Set([
   "SET",
   "GET",
@@ -21,7 +22,7 @@ function isValidCommand(command: string): boolean {
 export function isWriteCommand(command: string): boolean {
   return writeCommands.has(command)
 }
-export function createCommandHandlers(store: KeyValueStore) {
+export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisServerInfo) {
   function handleSET(command: string[]): Response {
     if (command.length === 3) {
       store.insertEntry(command[1], command[2])
@@ -79,6 +80,10 @@ export function createCommandHandlers(store: KeyValueStore) {
     store.setConfig(command[2], command[3])
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
+  function handleINFO(command: string[]): Response {
+    const info = `role:${serverInfo.role}\nport:${serverInfo.port}`
+    return { type: ResponseType.bulkString, data: [info.length.toString(), info] }
+  }
   async function handleCommand(command: string[]): Promise<Response> {
     if (!isValidCommand(command[0].toUpperCase())) {
       throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
@@ -98,6 +103,8 @@ export function createCommandHandlers(store: KeyValueStore) {
           return handleConfigSet(command)
         else if (command[1].toUpperCase() === "GET")
           return handleConfigGet(command)
+      case "INFO":
+        return handleINFO(command)
       default:
         throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
     }
