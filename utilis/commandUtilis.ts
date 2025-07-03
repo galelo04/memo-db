@@ -1,5 +1,6 @@
 console.log("commandUtilis loaded ✅");
 export interface tryParseResult {
+  fullCommandText?: string,
   remainingBuffer: Buffer,
   parsedCommand?: string[],
   error?: string
@@ -49,7 +50,7 @@ export function tryParse(buffer: Buffer): tryParseResult {
   if (i < argCount) {
     return { remainingBuffer: buffer }
   }
-  return { remainingBuffer: buffer.slice(bufferPointer), parsedCommand: result }
+  return { fullCommandText: buffer.slice(0, bufferPointer).toString(), remainingBuffer: buffer.slice(bufferPointer), parsedCommand: result }
 }
 
 

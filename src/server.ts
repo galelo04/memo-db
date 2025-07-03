@@ -4,6 +4,10 @@ import { RedisStore } from '../utilis/redisStore.ts'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
 import type { Response } from '../utilis/responseUtilis.ts'
 import net from 'net'
+import { promises as fsPromises, read } from 'fs'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+import { error } from 'console'
 let store = new RedisStore()
 function isValidCommand(command: string): boolean {
   return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE" || command === "CONFIG")
@@ -94,6 +98,9 @@ const server = net.createServer((socket) => {
   async function processBuffer() {
     while (true) {
       let response: Response
+      if (buffer.length <= 0) {
+        break;
+      }
 
       const result: tryParseResult = tryParse(buffer);
       if (result.error) {
@@ -102,6 +109,13 @@ const server = net.createServer((socket) => {
       }
       if (!result.parsedCommand) {
         break;
+      }
+      if (result.fullCommandText) {
+        let AOFFileName = store.getConfig('aof-fileName');
+        let AOFdir = store.getConfig('dir')
+        if (AOFFileName && AOFdir) {
+          fsPromises.appendFile(join(AOFdir, AOFFileName), result.fullCommandText)
+        }
       }
       buffer = result.remainingBuffer;
       try {
