@@ -8,8 +8,8 @@ export class RedisStore {
   constructor() {
     this.map = new Map<string, storeEntry>();
     this.configMap = new Map<string, string>();
-    this.configMap.set("dir", "/tmp/redis-data")
-    this.configMap.set("dbfilename", "rdbfile")
+    this.configMap.set("dir", "./dir")
+    this.configMap.set("aof-fileName", "aof.txt")
   }
   insertEntry(key: string, value: any, expireDate?: Date): void {
     this.map.set(key, { value, expireDate })
