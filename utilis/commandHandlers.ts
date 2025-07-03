@@ -1,9 +1,27 @@
 import type { KeyValueStore } from './storeInterface.ts'
 import { ResponseType } from './responseUtilis.ts'
 import type { Response } from './responseUtilis.ts'
-import { isValidCommand } from './commandParsing.ts'
-export function createCommandHandlers(store: KeyValueStore) {
+const validCommands = new Set([
+  "SET",
+  "GET",
+  "DEL",
+  "EXPIRE",
+  "CONFIG",
+  "INFO"
+]);
+const writeCommands = new Set([
+  "SET",
+  "DEL",
+  "EXPIRE"
+])
 
+function isValidCommand(command: string): boolean {
+  return validCommands.has(command);
+}
+export function isWriteCommand(command: string): boolean {
+  return writeCommands.has(command)
+}
+export function createCommandHandlers(store: KeyValueStore) {
   function handleSET(command: string[]): Response {
     if (command.length === 3) {
       store.insertEntry(command[1], command[2])

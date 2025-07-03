@@ -1,4 +1,5 @@
 import { readFileSync } from "fs";
+import { isWriteCommand } from "./commandHandlers.ts";
 console.log("commandUtilis loaded ✅");
 export interface tryParseResult {
   fullCommandText?: string,
@@ -6,26 +7,6 @@ export interface tryParseResult {
   parsedCommand?: string[],
   error?: string
 }
-const validCommands = new Set([
-  "SET",
-  "GET",
-  "DEL",
-  "EXPIRE",
-  "CONFIG",
-]);
-const writeCommands = new Set([
-  "SET",
-  "DEL",
-  "EXPIRE"
-])
-
-export function isValidCommand(command: string): boolean {
-  return validCommands.has(command);
-}
-function isWriteCommand(command: string): boolean {
-  return writeCommands.has(command)
-}
-
 
 export function tryParse(buffer: Buffer): tryParseResult {
   let bufferPointer = 0
@@ -71,7 +52,7 @@ export function tryParse(buffer: Buffer): tryParseResult {
   if (i < argCount) {
     return { remainingBuffer: buffer }
   }
-  return { fullCommandText: buffer.slice(0, bufferPointer).toString(), remainingBuffer: buffer.slice(bufferPointer), parsedCommand: result }
+  return { fullCommandText: isWriteCommand(result[0]) ? buffer.slice(0, bufferPointer).toString() : undefined, remainingBuffer: buffer.slice(bufferPointer), parsedCommand: result }
 }
 
 export function parseAOFFile(filePath: string): string[][] {
