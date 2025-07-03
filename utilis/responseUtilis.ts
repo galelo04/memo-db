@@ -29,19 +29,25 @@ function isResponse(obj: any): obj is Response {
   );
 }
 export function formatResponse(response: Response): string {
+  const CRLF = '\r\n';
+  let formatted = response.type;
 
-  let formatedResponse: string = response.type;
   if (response.type === ResponseType.array || response.type === ResponseType.map) {
-    formatedResponse += response.data.length.toString() + "\r\n"
+    formatted += response.data.length + CRLF;
     for (const item of response.data) {
-      if (isResponse((item)))
-        formatedResponse += formatResponse(item)
+      if (!isResponse(item)) {
+        throw new Error("Invalid response item in array/map");
+      }
+      formatted += formatResponse(item);
     }
+  } else if (response.type === ResponseType.bulkString && typeof response.data[0] === 'string') {
+    formatted += response.data[0].length + CRLF + response.data[0] + CRLF;
+  } else if (response.type === ResponseType.null) {
+    return "_\r\n";
+  } else {
+    formatted += (response.data[0] ?? "") + CRLF;
   }
-  else {
-    for (const arg of response.data) {
-      formatedResponse += `${arg}\r\n`
-    }
-  }
-  return formatedResponse
+
+  return formatted;
 }
+

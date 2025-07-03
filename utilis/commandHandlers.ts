@@ -39,7 +39,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
   function handleGET(command: string[]): Response {
     const entry = store.getValue(command[1])
     if (entry) {
-      return { type: ResponseType.bulkString, data: [entry.length.toString(), entry] }
+      return { type: ResponseType.bulkString, data: [entry] }
     }
     else {
       return { type: ResponseType.null, data: [] }
@@ -70,8 +70,8 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
       if (config) {
 
 
-        result.push({ type: ResponseType.bulkString, data: [command[i].length.toString(), command[i]] })
-        result.push({ type: ResponseType.bulkString, data: [config.length.toString(), config] })
+        result.push({ type: ResponseType.bulkString, data: [command[i]] })
+        result.push({ type: ResponseType.bulkString, data: [config] })
       }
     }
     return { type: ResponseType.map, data: result }
@@ -82,7 +82,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
   }
   function handleINFO(command: string[]): Response {
     const info = `role:${serverInfo.role}\nport:${serverInfo.port}`
-    return { type: ResponseType.bulkString, data: [info.length.toString(), info] }
+    return { type: ResponseType.bulkString, data: [info] }
   }
   async function handleCommand(command: string[]): Promise<Response> {
     if (!isValidCommand(command[0].toUpperCase())) {
