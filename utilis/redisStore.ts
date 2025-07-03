@@ -1,8 +1,9 @@
+import type { KeyValueStore } from './storeInterface.ts'
 export interface storeEntry {
   value: any,
   expireDate?: Date
 }
-export class RedisStore {
+export class RedisStore implements KeyValueStore {
   map: Map<string, storeEntry>
   configMap: Map<string, string>
   constructor() {
