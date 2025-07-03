@@ -1,3 +1,4 @@
+import { readFileSync } from "fs";
 console.log("commandUtilis loaded ✅");
 export interface tryParseResult {
   fullCommandText?: string,
@@ -73,4 +74,19 @@ export function tryParse(buffer: Buffer): tryParseResult {
   return { fullCommandText: buffer.slice(0, bufferPointer).toString(), remainingBuffer: buffer.slice(bufferPointer), parsedCommand: result }
 }
 
+export function parseAOFFile(filePath: string): string[][] {
 
+  const allCommands: string[][] = [];
+  let aofFileContent = readFileSync(filePath)
+  while (aofFileContent.length > 0) {
+    const result = tryParse(aofFileContent)
+    if (result.error) {
+      throw new Error(result.error)
+    }
+    if (result.parsedCommand) {
+      allCommands.push(result.parsedCommand)
+    }
+    aofFileContent = result.remainingBuffer
+  }
+  return allCommands;
+}

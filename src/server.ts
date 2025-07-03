@@ -131,6 +131,30 @@ const server = net.createServer((socket) => {
   })
 })
 
-server.listen(8080, () => {
-  console.log('server listening on port 8080');
-});
+
+try {
+  const AOFFileName = store.getConfig('aof-fileName')
+  const AOFdir = store.getConfig('dir')
+  if (AOFFileName && AOFdir) {
+    const allCommands: string[][] = parseAOFFile(join(AOFdir, AOFFileName))
+    const promises = []
+    for (const command of allCommands) {
+      promises.push(handleCommand(command))
+
+    }
+
+    Promise.all(promises).then(() => {
+      server.listen(8080, () => {
+
+        console.log('server listening on port 8080');
+      });
+    }).catch((error) => {
+      console.log(`Error ${error}`)
+
+    });
+  }
+} catch (error) {
+  console.error('Error reading file:', error)
+}
+
+
