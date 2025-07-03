@@ -1,4 +1,4 @@
-import { tryParse } from '../utilis/commandUtilis.ts'
+import { tryParse, parseAOFFile, isValidCommand } from '../utilis/commandUtilis.ts'
 import type { tryParseResult } from '../utilis/commandUtilis.ts'
 import { RedisStore } from '../utilis/redisStore.ts'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
@@ -9,9 +9,6 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { error } from 'console'
 let store = new RedisStore()
-function isValidCommand(command: string): boolean {
-  return (command === "SET" || command === "GET" || command === "DEL" || command === "EXPIRE" || command === "CONFIG")
-}
 function handleSET(command: string[]): Response {
   if (command.length === 3) {
     store.insertEntry(command[1], command[2])

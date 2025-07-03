@@ -5,6 +5,26 @@ export interface tryParseResult {
   parsedCommand?: string[],
   error?: string
 }
+const validCommands = new Set([
+  "SET",
+  "GET",
+  "DEL",
+  "EXPIRE",
+  "CONFIG",
+]);
+const writeCommands = new Set([
+  "SET",
+  "DEL",
+  "EXPIRE"
+])
+
+export function isValidCommand(command: string): boolean {
+  return validCommands.has(command);
+}
+function isWriteCommand(command: string): boolean {
+  return writeCommands.has(command)
+}
+
 
 export function tryParse(buffer: Buffer): tryParseResult {
   let bufferPointer = 0
