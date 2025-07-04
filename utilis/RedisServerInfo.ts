@@ -15,6 +15,14 @@ export class RedisServerInfo {
     this.master_replid = master_replid;
     this.master_repl_offset = master_repl_offset;
   }
+  toBuilder(): RedisServerInfoBuilder {
+    return new RedisServerInfoBuilder()
+      .setRole(this.role)
+      .setPort(this.port)
+      .setMasterId(this.master_replid)
+      .setMasterOffset(this.master_repl_offset)
+      .setMasterDetails(this.master_port, this.master_host)
+  }
 }
 
 export class RedisServerInfoBuilder {
@@ -37,8 +45,8 @@ export class RedisServerInfoBuilder {
     this._master_host = masterHost;
     return this;
   }
-  setMasterId() {
-    this._master_replid = cuid();
+  setMasterId(masterId: string) {
+    this._master_replid = masterId;
     return this;
   }
   setMasterOffset(masterOffset: number) {
