@@ -1,5 +1,6 @@
 import readline from 'readline/promises'
 import net from 'net'
+import { encodeCommand } from '../utilis/commandEncoding.ts';
 
 
 const client = net.createConnection({ port: 8080 });
@@ -8,22 +9,10 @@ const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 })
-function encodeCommand(command: string): string {
-
-  let result = "";
-  const carridge = '\r\n'
-  const splitedCommand = command.split(/\s+/).filter(Boolean);
-  result = result.concat(`*${splitedCommand.length}`, carridge)
-  splitedCommand.forEach((word) => {
-    result = result.concat(`$${word.length}`, carridge, word, carridge)
-  })
-  return result;
-}
 async function askAndSend() {
-
   const answer = await rl.question("> ")
-  let encoded = encodeCommand(answer)
-  // encoded = encoded.concat(encoded)
+  const splited = answer.split(/\s+/).filter(Boolean);
+  let encoded = encodeCommand(splited)
   client.write(encoded)
 }
 
