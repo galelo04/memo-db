@@ -8,7 +8,10 @@ const validCommands = new Set([
   "DEL",
   "EXPIRE",
   "CONFIG",
-  "INFO"
+  "INFO",
+  "PING",
+  "REPLCONF",
+  "PSYNC",
 ]);
 const writeCommands = new Set([
   "SET",
@@ -88,6 +91,15 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
     const info = lines.join('\n')
     return { type: ResponseType.bulkString, data: [info] }
   }
+  function handlePING(command: string[]): Response {
+    return { type: ResponseType.simpleString, data: ["PONG"] }
+  }
+  function handleREPLCONF(command: string[]): Response {
+    return { type: ResponseType.simpleString, data: ["OK"] }
+  }
+  function handlePSYNC(command: string[]): Response {
+    return { type: ResponseType.simpleString, data: [`FULLRESYNC ${serverInfo.master_replid} ${serverInfo.master_repl_offset}`] }
+  }
   async function handleCommand(command: string[]): Promise<Response> {
     if (!isValidCommand(command[0].toUpperCase())) {
       throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
@@ -109,6 +121,12 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
           return handleConfigGet(command)
       case "INFO":
         return handleINFO(command)
+      case "PING":
+        return handlePING(command)
+      case "REPLCONF":
+        return handleREPLCONF(command)
+      case "PSYNC":
+        return handlePSYNC(command)
       default:
         throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
     }
