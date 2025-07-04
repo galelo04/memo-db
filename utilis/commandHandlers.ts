@@ -81,7 +81,11 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
   function handleINFO(command: string[]): Response {
-    const info = `role:${serverInfo.role}\nport:${serverInfo.port}`
+    const lines = [`role:${serverInfo.role}`,
+    `port:${serverInfo.port}`,
+    `master_replid:${serverInfo.master_replid}`,
+    `master_repl_offset:${serverInfo.master_repl_offset}`]
+    const info = lines.join('\n')
     return { type: ResponseType.bulkString, data: [info] }
   }
   async function handleCommand(command: string[]): Promise<Response> {
