@@ -6,9 +6,11 @@ import { createCommandHandlers } from '../utilis/commandHandlers.ts'
 import type { Response } from '../utilis/responseUtilis.ts'
 import net, { Socket } from 'net'
 import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
+import { encodeCommand } from '../utilis/commandEncoding.ts'
 import { promises as fsPromises } from 'fs'
 import { join } from 'path'
 import minimist from 'minimist'
+import cuid from 'cuid'
 
 async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) => Promise<Response>, socket: Socket, AOFdir?: string, AOFFileName?: string) {
   while (true) {
@@ -35,22 +37,48 @@ async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) 
     } catch (err: any) {
       response = { type: ResponseType.error, data: [`${err.message || err}`] }
     }
-    socket.write(formatResponse(response))
+    const formated = formatResponse(response)
+    socket.write(formated)
+    if (AOFdir && AOFFileName && formated.includes('FULLRESYNC')) {
+      const content = await fsPromises.readFile(join(AOFdir, AOFFileName))
+      socket.write(`$${content.length}\r\n${content}`)
+    }
   }
+}
+function runReplica(redisServerInfo: RedisServerInfo, argv: minimist.ParsedArgs) {
+  const masterDetail = argv.replicaof.split(' ')
+  redisServerInfo = redisServerInfo.toBuilder().setRole("replica").setMasterDetails(masterDetail[0], masterDetail[1]).setMasterId("-1").build()
+  const replica = net.createConnection({ port: redisServerInfo.master_port, host: redisServerInfo.master_host });
+  replica.on('connect', () => {
+    const commands = [["PING"], ["REPLCONF", "listening-port", argv.port], ["REPLCONF", "capa", "eof", "capa", "psync2"], ["PSYNC", "?", redisServerInfo.master_replid],];
+    for (const command of commands) {
+      const encoded = encodeCommand(command);
+      replica.write(encoded)
+    }
+  })
+  replica.on('data', (data) => {
+    console.log(data);
+  })
 }
 
 async function main() {
   const argv = minimist(process.argv.slice(2))
-  const redisInfo = new RedisServerInfoBuilder().setPort(+argv.port | 8080).setRole("master").build()
-  console.log(argv)
+  let redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 8080).setRole("master").setMasterId(cuid()).setMasterOffset(0).build()
+  if (argv.replicaof) {
+    runReplica(redisServerInfo, argv)
+  }
   const store = new RedisStore()
-  const { handleCommand } = createCommandHandlers(store, redisInfo)
-  const AOFFileName = store.getConfig('aof-fileName');
-  const AOFdir = store.getConfig('dir')
-  if (AOFFileName && AOFdir) {
-    const allCommands: string[][] = parseAOFFile(join(AOFdir, AOFFileName))
-    for (const command of allCommands) {
-      await handleCommand(command)
+  const { handleCommand } = createCommandHandlers(store, redisServerInfo)
+  let AOFFileName: string | undefined;
+  let AOFdir: string | undefined;
+  if (argv.aof) {
+    AOFFileName = store.getConfig('aof-fileName');
+    AOFdir = store.getConfig('dir')
+    if (AOFFileName && AOFdir) {
+      const allCommands: string[][] = parseAOFFile(join(AOFdir, AOFFileName))
+      for (const command of allCommands) {
+        await handleCommand(command)
+      }
     }
   }
 
@@ -63,8 +91,8 @@ async function main() {
     })
   })
 
-  server.listen(redisInfo.port, () => {
-    console.log(`server listening on port ${redisInfo.port}`);
+  server.listen(redisServerInfo.port, () => {
+    console.log(`server listening on port ${redisServerInfo.port}`);
   });
 }
 
