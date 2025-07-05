@@ -1,4 +1,5 @@
-import cuid from "cuid"
+import { Socket } from "net"
+
 type Role = "master" | "replica"
 export class RedisServerInfo {
   readonly role: Role
@@ -7,6 +8,7 @@ export class RedisServerInfo {
   readonly master_host: string
   readonly master_replid: string
   readonly master_repl_offset: number
+  readonly replicas: Set<Socket>
   constructor(role: Role, port: number, master_port: number, master_host: string, master_replid: string, master_repl_offset: number) {
     this.role = role;
     this.port = port;
@@ -14,6 +16,7 @@ export class RedisServerInfo {
     this.master_host = master_host;
     this.master_replid = master_replid;
     this.master_repl_offset = master_repl_offset;
+    this.replicas = new Set<Socket>()
   }
   toBuilder(): RedisServerInfoBuilder {
     return new RedisServerInfoBuilder()

@@ -35,6 +35,8 @@ async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) 
     }
     buffer = result.remainingBuffer;
     try {
+      if (result.parsedCommand[0] === "REPLCONF")
+        redisServerInfo.replicas.add(socket)
       response = await handleCommand(result.parsedCommand);
     } catch (err: any) {
       response = { type: ResponseType.error, data: [`${err.message || err}`] }
