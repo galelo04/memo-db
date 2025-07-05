@@ -9,32 +9,9 @@ import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerIn
 import minimist from 'minimist'
 import { encodeCommand } from '../utilis/commandEncoding.ts'
 import fs from 'node:fs'
+import { isWriteCommand } from '../utilis/commandHandlers.ts'
 
-async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) => Promise<Response>, socket: Socket, redisServerInfo: RedisServerInfo) {
-  while (true) {
-    let response: Response
-    if (buffer.length <= 0) {
-      break;
-    }
-    const result: tryParseResult = tryParse(buffer);
-    if (result.error) {
-      response = { type: ResponseType.error, data: [`${result.error}`] }
-      break;
-    }
-    if (!result.parsedCommand) {
-      break;
-    }
-    buffer = result.remainingBuffer;
-    try {
-      redisServerInfo.replicas.add(socket)
-      response = await handleCommand(result.parsedCommand);
-    } catch (err: any) {
-      response = { type: ResponseType.error, data: [`${err.message || err}`] }
-    }
-    const formated = formatResponse(response)
-    socket.write(formated)
-  }
-}
+
 type MasterReplicaState = "HANDSHAKE_PING" | "HANDSHAKE_REPLCONF1" | "HANDSHAKE_REPLCONF2" | "HANDSHAKE_PSYNC" | "HANDSHAKE_COMPLETE" | "WRITE";
 
 async function main() {
@@ -125,11 +102,40 @@ async function main() {
   })
 
   const server = net.createServer((socket) => {
+    async function processBuffer() {
+      while (true) {
+        let response: Response
+        if (buffer.length <= 0) {
+          break;
+        }
+        const result: tryParseResult = tryParse(buffer);
+        if (result.error) {
+          response = { type: ResponseType.error, data: [`${result.error}`] }
+          break;
+        }
+        if (!result.parsedCommand) {
+          break;
+        }
+        buffer = result.remainingBuffer;
+        if (isWriteCommand(result.parsedCommand[0])) {
+          response = { type: ResponseType.error, data: ["READONLY"] };
+          socket.write(formatResponse(response))
+          break;
+        }
+        try {
+          response = await handleCommand(result.parsedCommand);
+        } catch (err: any) {
+          response = { type: ResponseType.error, data: [`${err.message || err}`] }
+        }
+        const formated = formatResponse(response)
+        socket.write(formated)
+      }
+    }
     let buffer = Buffer.alloc(0)
     console.log('client connected');
     socket.on('data', (data) => {
       buffer = Buffer.concat([buffer, data])
-      processBuffer(buffer, handleCommand, socket, redisServerInfo)
+      processBuffer()
     })
   })
 

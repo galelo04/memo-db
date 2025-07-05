@@ -2,7 +2,7 @@ import { tryParse, parseAOFFile } from '../utilis/commandParsing.ts'
 import type { tryParseResult } from '../utilis/commandParsing.ts'
 import { RedisStore } from '../utilis/redisStore.ts'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
-import { createCommandHandlers } from '../utilis/commandHandlers.ts'
+import { createCommandHandlers, isWriteCommand } from '../utilis/commandHandlers.ts'
 import type { Response } from '../utilis/responseUtilis.ts'
 import net, { Socket } from 'net'
 import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
@@ -41,7 +41,7 @@ async function main() {
         if (!result.parsedCommand) {
           break;
         }
-        if (result.fullCommandText) {
+        if (result.fullCommandText && isWriteCommand(result.parsedCommand[0])) {
           if (AOFFileName && AOFdir) {
             fsPromises.appendFile(join(AOFdir, AOFFileName), result.fullCommandText)
             for (const replicaSocket of redisServerInfo.replicas) {
@@ -78,7 +78,4 @@ async function main() {
     console.log(`server listening on port ${redisServerInfo.port}`);
   });
 }
-
-
-
 main()
