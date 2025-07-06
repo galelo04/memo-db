@@ -5,7 +5,7 @@ import net from 'net'
 import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
 import minimist from 'minimist'
 import cuid from 'cuid'
-import { processBuffer, connectToMaster, replicaHandle, masterHandle } from '../utilis/serverUtilis.ts'
+import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUtilis.ts'
 async function main() {
 
   const argv = minimist(process.argv.slice(2))
@@ -36,18 +36,13 @@ async function main() {
     console.log('client connected');
     socket.on('data', async (data) => {
       buffer = Buffer.concat([buffer, data])
-      const result = await processBuffer(buffer, handleCommand)
-      if (result) {
-        if (redisServerInfo.role === "replica") {
-
-          replicaHandle(result, socket)
-        } else if (redisServerInfo.role === "master") {
-          masterHandle(result, redisServerInfo, socket)
+      const processBufferResult = await processBuffer(buffer, handleCommand, redisServerInfo)
+      buffer = processBufferResult.remainingBuffer;
+      for (const formatedResponseDetails of processBufferResult.formatedResponsesDetails) {
+        socket.write(formatedResponseDetails.formatedResponse)
+        if (redisServerInfo.role === "master") {
+          masterHandle(formatedResponseDetails, redisServerInfo, socket)
         }
-        if (result.formatedResponse)
-          socket.write(result.formatedResponse)
-        if (result.parsingResult.remainingBuffer)
-          buffer = result.parsingResult.remainingBuffer
       }
     })
   })
