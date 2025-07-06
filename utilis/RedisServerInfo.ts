@@ -1,6 +1,8 @@
 import { Socket } from "net"
 
 type Role = "master" | "replica"
+
+export type RequesterType = "client" | "master"
 export class RedisServerInfo {
   readonly role: Role
   readonly port: number

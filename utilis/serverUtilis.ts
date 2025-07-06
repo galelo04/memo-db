@@ -6,19 +6,15 @@ import type { Response } from '../utilis/responseUtilis.ts'
 import net, { Socket } from 'net'
 import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
 import { encodeCommand } from '../utilis/commandEncoding.ts'
-import { promises as fsPromises } from 'fs'
+import { appendFileSync, promises as fsPromises } from 'fs'
 import { isWriteCommand } from './commandHandlers.ts'
-interface ProcessBufferResult {
-  formatedResponsesDetails: ResponseDetails[],
-  remainingBuffer: Buffer
-}
-interface ResponseDetails {
-  formatedResponse: string,
-  parsedCommand?: string[],
-  commandFullText?: string,
+import type { RequesterType } from './RedisServerInfo.ts'
+interface ParsingResult {
+  remainingBuffer: Buffer,
+  parsingResults: tryParseResult[]
 }
 type MasterReplicaState = "HANDSHAKE_PING" | "HANDSHAKE_REPLCONF1" | "HANDSHAKE_REPLCONF2" | "HANDSHAKE_PSYNC" | "HANDSHAKE_COMPLETE" | "WRITE";
-export async function connectToMaster(redisServerInfo: RedisServerInfo, store: RedisStore, handleCommand: (command: string[]) => Promise<Response>) {
+export async function connectToMaster(redisServerInfo: RedisServerInfo, store: RedisStore, handleCommand: (command: string[], requesterType: RequesterType) => Promise<Response>, requesterType: RequesterType) {
   let currentState: MasterReplicaState;
   const replica = net.createConnection({ port: redisServerInfo.master_port, host: redisServerInfo.master_host });
   let encoded: string
@@ -33,8 +29,8 @@ export async function connectToMaster(redisServerInfo: RedisServerInfo, store: R
   replica.on('data', async (data) => {
     if (currentState === "WRITE") {
       buffer = Buffer.concat([buffer, data]);
-      const result = await processBuffer(buffer, handleCommand, redisServerInfo)
-      buffer = result.remainingBuffer
+      const parsingResult = await processBuffer(buffer)
+      buffer = parsingResult.remainingBuffer
       store.print()
     } else if (currentState === "HANDSHAKE_PING" && data.includes("PONG")) {
       currentState = "HANDSHAKE_REPLCONF1"
@@ -59,11 +55,12 @@ export async function connectToMaster(redisServerInfo: RedisServerInfo, store: R
         }
       }
       fsPromises.appendFile('./dir/replication.txt', slice)
-
+      // appendFileSync('./dir/replication.txt', slice)
       if (slice.byteLength + replicationRecievedBytes === replicationMaxBytes) {
         const allCommands: string[][] = parseAOFFile('./dir/replication.txt')
+
         for (const command of allCommands) {
-          await handleCommand(command)
+          await handleCommand(command, requesterType)
         }
         currentState = "WRITE"
         store.print()
@@ -75,55 +72,35 @@ export async function connectToMaster(redisServerInfo: RedisServerInfo, store: R
       encoded = encodeCommand(["PING"])
     }
     if (currentState !== "WRITE" && currentState !== "HANDSHAKE_COMPLETE") {
-      console.log("encoded: ", encoded)
       replica.write(encoded)
     }
   })
 }
-export async function processBuffer(buffer: Buffer, handleCommand: (command: string[]) => Promise<Response>, redisServerInfo: RedisServerInfo): Promise<ProcessBufferResult> {
+export async function processBuffer(buffer: Buffer): Promise<ParsingResult> {
 
   let currentBuffer: Buffer = buffer;
-  const responsesToSendDetails: ResponseDetails[] = []
+  const parsingResults: tryParseResult[] = []
   while (true) {
     if (currentBuffer.length <= 0) {
       break;
     }
 
     const parsingResult = tryParse(currentBuffer);
-
+    currentBuffer = parsingResult.remainingBuffer;
+    parsingResults.push(parsingResult)
     if (parsingResult.error) {
-
-      const errorResponse = { type: ResponseType.error, data: [`${parsingResult.error}`] };
-      responsesToSendDetails.push({ formatedResponse: formatResponse(errorResponse) });
-
       currentBuffer = Buffer.alloc(0)
       break;
     }
     if (!parsingResult.parsedCommand) {
       break;
     }
-    if (redisServerInfo.role === "replica" && isWriteCommand(parsingResult.parsedCommand[0])) {
-      const errorResponse = { type: ResponseType.error, data: ["READONLY"] };
-      responsesToSendDetails.push({ formatedResponse: formatResponse(errorResponse) });
-    }
-    let response: Response
-    try {
-      response = await handleCommand(parsingResult.parsedCommand);
-    } catch (err: any) {
-      response = { type: ResponseType.error, data: [`${err.message || err}`] }
-    }
-    responsesToSendDetails.push({ formatedResponse: formatResponse(response), parsedCommand: parsingResult.parsedCommand, commandFullText: parsingResult.fullCommandText })
-    currentBuffer = parsingResult.remainingBuffer;
   }
-
-  return { formatedResponsesDetails: responsesToSendDetails, remainingBuffer: currentBuffer };
+  return { parsingResults, remainingBuffer: currentBuffer };
 }
 
-export async function masterHandle(formatedResponseDetails: ResponseDetails, redisServerInfo: RedisServerInfo, socket: Socket) {
+export async function masterHandle(formatedResponse: string, commandFullText: string, parsedCommand: string[], redisServerInfo: RedisServerInfo, socket: Socket) {
 
-  const formatedResponse = formatedResponseDetails.formatedResponse;
-  const commandFullText = formatedResponseDetails.commandFullText;
-  const parsedCommand = formatedResponseDetails.parsedCommand;
 
   if (commandFullText && parsedCommand && isWriteCommand(parsedCommand[0])) {
     if (commandFullText) {
@@ -132,12 +109,11 @@ export async function masterHandle(formatedResponseDetails: ResponseDetails, red
         replicaSocket.write(commandFullText)
       }
     }
-    if (parsedCommand[0] === "REPLCONF")
-      redisServerInfo.replicas.add(socket)
   }
 
   if (formatedResponse.includes('FULLRESYNC')) {
     const content = await fsPromises.readFile('./dir/aof.txt')
+    redisServerInfo.replicas.add(socket)
     console.log('Sending AOF file content to replica')
     socket.write(`$${content.length}\r\n${content}`)
   }

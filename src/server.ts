@@ -3,9 +3,15 @@ import { RedisStore } from '../utilis/redisStore.ts'
 import { createCommandHandlers } from '../utilis/commandHandlers.ts'
 import net from 'net'
 import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
+import type { RequesterType } from '../utilis/RedisServerInfo.ts'
 import minimist from 'minimist'
 import cuid from 'cuid'
+import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
+import type { Response } from '../utilis/responseUtilis.ts'
 import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUtilis.ts'
+
+
+
 async function main() {
 
   const argv = minimist(process.argv.slice(2))
@@ -21,27 +27,41 @@ async function main() {
   const { handleCommand } = createCommandHandlers(store, redisServerInfo)
 
   if (redisServerInfo.role === "replica") {
-
-    connectToMaster(redisServerInfo, store, handleCommand)
+    const requesterType: RequesterType = 'master'
+    connectToMaster(redisServerInfo, store, handleCommand, requesterType)
   } else {
+    const requesterType: RequesterType = 'client'
     //reading persistance file and apply commands to the store
     const allCommands: string[][] = parseAOFFile('./dir/aof.txt')
     for (const command of allCommands) {
-      await handleCommand(command)
+      await handleCommand(command, requesterType)
     }
   }
 
   const server = net.createServer((socket) => {
+    const requesterType: RequesterType = 'client'
     let buffer = Buffer.alloc(0)
     console.log('client connected');
     socket.on('data', async (data) => {
+
       buffer = Buffer.concat([buffer, data])
-      const processBufferResult = await processBuffer(buffer, handleCommand, redisServerInfo)
+      const processBufferResult = await processBuffer(buffer)
       buffer = processBufferResult.remainingBuffer;
-      for (const formatedResponseDetails of processBufferResult.formatedResponsesDetails) {
-        socket.write(formatedResponseDetails.formatedResponse)
+
+      for (const parsingResult of processBufferResult.parsingResults) {
+        let response: Response;
+        if (parsingResult.error) {
+          response = { type: ResponseType.error, data: [`${parsingResult.error}`] };
+        }
+        if (!parsingResult.parsedCommand || !parsingResult.fullCommandText) {
+          break;
+        }
+        response = await handleCommand(parsingResult.parsedCommand, requesterType)
+        const formatedResponse = formatResponse(response)
+
+        socket.write(formatedResponse)
         if (redisServerInfo.role === "master") {
-          masterHandle(formatedResponseDetails, redisServerInfo, socket)
+          masterHandle(formatedResponse, parsingResult.fullCommandText, parsingResult.parsedCommand, redisServerInfo, socket)
         }
       }
     })
