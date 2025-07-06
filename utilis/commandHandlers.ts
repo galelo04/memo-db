@@ -2,7 +2,7 @@ import type { KeyValueStore } from './storeInterface.ts'
 import { ResponseType } from './responseUtilis.ts'
 import type { Response } from './responseUtilis.ts'
 import { RedisServerInfo } from './RedisServerInfo.ts';
-import { SocketInfo } from './RedisServerInfo.ts';
+import type { SocketInfo } from './RedisServerInfo.ts';
 const validCommands = new Set([
   "SET",
   "GET",
@@ -13,6 +13,9 @@ const validCommands = new Set([
   "PING",
   "REPLCONF",
   "PSYNC",
+  "MULTI",
+  "EXEC",
+  "DISCARD"
 ]);
 const writeCommands = new Set([
   "SET",
@@ -101,11 +104,43 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
   function handlePSYNC(command: string[]): Response {
     return { type: ResponseType.simpleString, data: [`FULLRESYNC ${serverInfo.master_replid} ${serverInfo.master_repl_offset}`] }
   }
+  function handleMULTI(command: string[], socketInfo: SocketInfo): Response {
+
+    if (socketInfo.isTransaction) {
+      return { type: ResponseType.error, data: ["There is a Transaction already activated use EXEC to execute transaction or DISCARD to discard it instead"] }
+    }
+    socketInfo.isTransaction = true;
+    return { type: ResponseType.simpleString, data: ["OK"] }
+  }
+  async function handleEXEC(command: string[], socketInfo: SocketInfo): Promise<Response> {
+    if (!socketInfo.isTransaction) {
+      return { type: ResponseType.error, data: ["EXEC without MULTI"] }
+    }
+    socketInfo.isTransaction = false;
+    const execResult: Response[] = []
+    for (const command of socketInfo.commandsQueue) {
+      execResult.push(await handleCommand(command, socketInfo))
+    }
+    socketInfo.commandsQueue = []
+    return { type: ResponseType.array, data: execResult }
+  }
+  function handleDISCARD(command: string[], socketInfo: SocketInfo): Response {
+    if (!socketInfo.isTransaction) {
+      return { type: ResponseType.error, data: ["DISCARD without MULTI"] }
+    }
+    socketInfo.isTransaction = false;
+    socketInfo.commandsQueue = []
+    return { type: ResponseType.simpleString, data: ["OK"] }
+  }
   async function handleCommand(command: string[], socketInfo: SocketInfo): Promise<Response> {
+    if (socketInfo.isTransaction && command[0].toUpperCase() !== "EXEC" && command[0].toUpperCase() !== "DISCARD" && command[0].toUpperCase() !== "MULTI") {
+      socketInfo.commandsQueue.push(command)
+      return { type: ResponseType.simpleString, data: ["QUEUED"] }
+    }
     if (!isValidCommand(command[0].toUpperCase())) {
       return { type: ResponseType.error, data: [`unknown command ${command[0]}`] };
     }
-    if (isWriteCommand(command[0]) && serverInfo.role === "replica" && socketInfo.requesterType === "client") {
+    if (isWriteCommand(command[0].toUpperCase()) && serverInfo.role === "replica" && socketInfo.requesterType === "client") {
       return { type: ResponseType.error, data: ["READONLY"] };
     }
 
@@ -131,8 +166,14 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
         return handleREPLCONF(command)
       case "PSYNC":
         return handlePSYNC(command)
+      case "MULTI":
+        return handleMULTI(command, socketInfo);
+      case "EXEC":
+        return handleEXEC(command, socketInfo);
+      case "DISCARD":
+        return handleDISCARD(command, socketInfo)
       default:
-        throw { type: ResponseType.error, data: `unknown command ${command[0]}` };
+        return { type: ResponseType.error, data: [`unknown command ${command[0]}`] };
     }
   }
   return { handleCommand }
