@@ -3,13 +3,12 @@ import { RedisStore } from '../utilis/redisStore.ts'
 import { createCommandHandlers } from '../utilis/commandHandlers.ts'
 import net from 'net'
 import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
-import type { RequesterType } from '../utilis/RedisServerInfo.ts'
+import { SocketInfo } from '../utilis/RedisServerInfo.ts'
 import minimist from 'minimist'
 import cuid from 'cuid'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
 import type { Response } from '../utilis/responseUtilis.ts'
 import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUtilis.ts'
-
 
 
 async function main() {
@@ -25,21 +24,20 @@ async function main() {
 
   const store = new RedisStore()
   const { handleCommand } = createCommandHandlers(store, redisServerInfo)
-
+  const socketInfo: SocketInfo = { isTransaction: false, requesterType: 'client', commandsQueue: [] }
   if (redisServerInfo.role === "replica") {
-    const requesterType: RequesterType = 'master'
-    connectToMaster(redisServerInfo, store, handleCommand, requesterType)
+    socketInfo.requesterType = 'master'
+    connectToMaster(redisServerInfo, store, handleCommand, socketInfo)
   } else {
-    const requesterType: RequesterType = 'client'
     //reading persistance file and apply commands to the store
     const allCommands: string[][] = parseAOFFile('./dir/aof.txt')
     for (const command of allCommands) {
-      await handleCommand(command, requesterType)
+      await handleCommand(command, socketInfo)
     }
   }
 
   const server = net.createServer((socket) => {
-    const requesterType: RequesterType = 'client'
+    const socketInfo: SocketInfo = { isTransaction: false, requesterType: 'client', commandsQueue: [] }
     let buffer = Buffer.alloc(0)
     console.log('client connected');
     socket.on('data', async (data) => {
@@ -56,7 +54,7 @@ async function main() {
         if (!parsingResult.parsedCommand || !parsingResult.fullCommandText) {
           break;
         }
-        response = await handleCommand(parsingResult.parsedCommand, requesterType)
+        response = await handleCommand(parsingResult.parsedCommand, socketInfo)
         const formatedResponse = formatResponse(response)
 
         socket.write(formatedResponse)

@@ -2,7 +2,12 @@ import { Socket } from "net"
 
 type Role = "master" | "replica"
 
-export type RequesterType = "client" | "master"
+type RequesterType = "client" | "master"
+export interface SocketInfo {
+  isTransaction: boolean,
+  requesterType: RequesterType,
+  commandsQueue: string[][]
+}
 export class RedisServerInfo {
   readonly role: Role
   readonly port: number

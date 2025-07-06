@@ -2,7 +2,7 @@ import type { KeyValueStore } from './storeInterface.ts'
 import { ResponseType } from './responseUtilis.ts'
 import type { Response } from './responseUtilis.ts'
 import { RedisServerInfo } from './RedisServerInfo.ts';
-import type { RequesterType } from './RedisServerInfo.ts';
+import { SocketInfo } from './RedisServerInfo.ts';
 const validCommands = new Set([
   "SET",
   "GET",
@@ -101,11 +101,11 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
   function handlePSYNC(command: string[]): Response {
     return { type: ResponseType.simpleString, data: [`FULLRESYNC ${serverInfo.master_replid} ${serverInfo.master_repl_offset}`] }
   }
-  async function handleCommand(command: string[], requesterType: RequesterType): Promise<Response> {
+  async function handleCommand(command: string[], socketInfo: SocketInfo): Promise<Response> {
     if (!isValidCommand(command[0].toUpperCase())) {
       return { type: ResponseType.error, data: [`unknown command ${command[0]}`] };
     }
-    if (isWriteCommand(command[0]) && serverInfo.role === "replica" && requesterType === "client") {
+    if (isWriteCommand(command[0]) && serverInfo.role === "replica" && socketInfo.requesterType === "client") {
       return { type: ResponseType.error, data: ["READONLY"] };
     }
 

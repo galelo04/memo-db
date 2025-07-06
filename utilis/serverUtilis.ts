@@ -4,17 +4,16 @@ import { RedisStore } from '../utilis/redisStore.ts'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
 import type { Response } from '../utilis/responseUtilis.ts'
 import net, { Socket } from 'net'
-import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
+import { RedisServerInfo, RedisServerInfoBuilder, SocketInfo } from '../utilis/RedisServerInfo.ts'
 import { encodeCommand } from '../utilis/commandEncoding.ts'
 import { appendFileSync, promises as fsPromises } from 'fs'
 import { isWriteCommand } from './commandHandlers.ts'
-import type { RequesterType } from './RedisServerInfo.ts'
 interface ParsingResult {
   remainingBuffer: Buffer,
   parsingResults: tryParseResult[]
 }
 type MasterReplicaState = "HANDSHAKE_PING" | "HANDSHAKE_REPLCONF1" | "HANDSHAKE_REPLCONF2" | "HANDSHAKE_PSYNC" | "HANDSHAKE_COMPLETE" | "WRITE";
-export async function connectToMaster(redisServerInfo: RedisServerInfo, store: RedisStore, handleCommand: (command: string[], requesterType: RequesterType) => Promise<Response>, requesterType: RequesterType) {
+export async function connectToMaster(redisServerInfo: RedisServerInfo, store: RedisStore, handleCommand: (command: string[], socketInfo: SocketInfo) => Promise<Response>, socketInfo: SocketInfo) {
   let currentState: MasterReplicaState;
   const replica = net.createConnection({ port: redisServerInfo.master_port, host: redisServerInfo.master_host });
   let encoded: string
@@ -60,7 +59,7 @@ export async function connectToMaster(redisServerInfo: RedisServerInfo, store: R
         const allCommands: string[][] = parseAOFFile('./dir/replication.txt')
 
         for (const command of allCommands) {
-          await handleCommand(command, requesterType)
+          await handleCommand(command, socketInfo)
         }
         currentState = "WRITE"
         store.print()
