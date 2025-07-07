@@ -17,9 +17,9 @@ async function main() {
   let redisServerInfo: RedisServerInfo;
   if (argv.replicaof) {
     const masterDetail = argv.replicaof.split(' ')
-    redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 8080).setRole("replica").setMasterDetails(masterDetail[0], masterDetail[1]).setMasterId("-1").build()
+    redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 6379).setRole("replica").setMasterDetails(masterDetail[0], masterDetail[1]).setMasterId("-1").build()
   } else {
-    redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 8080).setRole("master").setMasterId(cuid()).setMasterOffset(0).build()
+    redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 6379).setRole("master").setMasterId(cuid()).setMasterOffset(0).build()
   }
 
   const store = new RedisStore()
