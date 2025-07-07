@@ -36,9 +36,16 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
     }
     else if (command.length === 5) {
       const now = new Date();
-      const secondsToAdd = Number(command[4]);
+      let milliSecondsToAdd;
+      if (command[3].toUpperCase() === "EX") {
+        milliSecondsToAdd = Number(command[4]) * 1000;
+      } else if (command[3].toUpperCase() === "PX") {
+        milliSecondsToAdd = Number(command[4])
+      } else {
+        return { type: ResponseType.error, data: [`Unsupported percision ${command[3]}`] }
+      }
 
-      const expireDate = new Date(now.getTime() + secondsToAdd * 1000);
+      const expireDate = new Date(now.getTime() + milliSecondsToAdd);
       store.insertEntry(command[1], command[2], expireDate)
     }
     return { type: ResponseType.simpleString, data: ["OK"] }
