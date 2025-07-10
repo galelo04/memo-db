@@ -1,4 +1,4 @@
-import type { KeyValueStore } from './storeInterface.ts'
+import type { KeyValueStore } from './storeInterface.js'
 export interface storeEntry {
   value: any,
   expireDate?: Date

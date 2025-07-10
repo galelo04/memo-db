@@ -1,8 +1,8 @@
-import type { KeyValueStore } from './storeInterface.ts'
-import { ResponseType } from './responseUtilis.ts'
-import type { Response } from './responseUtilis.ts'
-import { RedisServerInfo } from './RedisServerInfo.ts';
-import type { SocketInfo } from './RedisServerInfo.ts';
+import type { KeyValueStore } from './storeInterface.js'
+import { ResponseType } from './responseUtilis.js'
+import type { Response } from './responseUtilis.js'
+import { RedisServerInfo } from './RedisServerInfo.js';
+import type { SocketInfo } from './RedisServerInfo.js';
 const validCommands = new Set([
   "SET",
   "GET",

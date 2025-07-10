@@ -1,14 +1,14 @@
-import { tryParse, parseAOFFile } from '../utilis/commandParsing.ts'
-import type { tryParseResult } from '../utilis/commandParsing.ts'
-import { RedisStore } from '../utilis/redisStore.ts'
-import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
-import type { Response } from '../utilis/responseUtilis.ts'
+import { tryParse, parseAOFFile } from '../utilis/commandParsing.js'
+import type { tryParseResult } from '../utilis/commandParsing.js'
+import { RedisStore } from '../utilis/redisStore.js'
+import { formatResponse, ResponseType } from '../utilis/responseUtilis.js'
+import type { Response } from '../utilis/responseUtilis.js'
 import net, { Socket } from 'net'
-import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
-import type { SocketInfo } from '../utilis/RedisServerInfo.ts'
-import { encodeCommand } from '../utilis/commandEncoding.ts'
+import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.js'
+import type { SocketInfo } from '../utilis/RedisServerInfo.js'
+import { encodeCommand } from '../utilis/commandEncoding.js'
 import { appendFileSync, promises as fsPromises } from 'fs'
-import { isWriteCommand } from './commandHandlers.ts'
+import { isWriteCommand } from './commandHandlers.js'
 interface ParsingResult {
   remainingBuffer: Buffer,
   parsingResults: tryParseResult[]

@@ -36,12 +36,12 @@ export class RedisServerInfo {
 }
 
 export class RedisServerInfoBuilder {
-  private _role: Role;
-  private _port: number;
-  private _master_port: number;
-  private _master_host: string;
-  private _master_replid: string;
-  private _master_repl_offset: number;
+  private _role!: Role;
+  private _port!: number;
+  private _master_port!: number;
+  private _master_host!: string;
+  private _master_replid!: string;
+  private _master_repl_offset!: number;
   setRole(role: Role) {
     this._role = role
     return this

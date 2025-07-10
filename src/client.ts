@@ -1,6 +1,6 @@
 import readline from 'readline/promises'
 import net from 'net'
-import { encodeCommand } from '../utilis/commandEncoding.ts';
+import { encodeCommand } from '../utilis/commandEncoding.js';
 import minimist from 'minimist';
 
 const argv = minimist(process.argv.slice(2))

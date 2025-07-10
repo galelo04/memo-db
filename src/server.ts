@@ -1,14 +1,14 @@
-import { parseAOFFile } from '../utilis/commandParsing.ts'
-import { RedisStore } from '../utilis/redisStore.ts'
-import { createCommandHandlers } from '../utilis/commandHandlers.ts'
+import { parseAOFFile } from '../utilis/commandParsing.js'
+import { RedisStore } from '../utilis/redisStore.js'
+import { createCommandHandlers } from '../utilis/commandHandlers.js'
 import net from 'net'
-import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.ts'
-import type { SocketInfo } from '../utilis/RedisServerInfo.ts'
+import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.js'
+import type { SocketInfo } from '../utilis/RedisServerInfo.js'
 import minimist from 'minimist'
 import cuid from 'cuid'
-import { formatResponse, ResponseType } from '../utilis/responseUtilis.ts'
-import type { Response } from '../utilis/responseUtilis.ts'
-import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUtilis.ts'
+import { formatResponse, ResponseType } from '../utilis/responseUtilis.js'
+import type { Response } from '../utilis/responseUtilis.js'
+import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUtilis.js'
 
 
 async function main() {
