@@ -3,6 +3,8 @@ import { ResponseType } from './responseUtilis.js'
 import type { Response } from './responseUtilis.js'
 import { MemoServerInfo } from '../models/MemoServerInfo.js';
 import type { SocketInfo } from '../models/MemoServerInfo.js';
+import { EntryType } from '../models/StoreInterface.js';
+import { StoreEntry } from '../models/MemoStore.js';
 const validCommands = new Set([
   "SET",
   "GET",
@@ -15,12 +17,16 @@ const validCommands = new Set([
   "PSYNC",
   "MULTI",
   "EXEC",
-  "DISCARD"
+  "DISCARD",
+  "INCR",
+  "DECR"
 ]);
 const writeCommands = new Set([
   "SET",
   "DEL",
-  "EXPIRE"
+  "EXPIRE",
+  "INCR",
+  "DECR"
 ])
 
 function isValidCommand(command: string): boolean {
@@ -32,7 +38,7 @@ export function isWriteCommand(command: string): boolean {
 export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServerInfo) {
   function handleSET(command: string[]): Response {
     if (command.length === 3) {
-      store.insertEntry(command[1], command[2])
+      store.insertEntry(command[1], command[2], 'string')
     }
     else if (command.length === 5) {
       const now = new Date();
@@ -46,14 +52,18 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
       }
 
       const expireDate = new Date(now.getTime() + milliSecondsToAdd);
-      store.insertEntry(command[1], command[2], expireDate)
+      store.insertEntry(command[1], command[2], 'string', expireDate)
     }
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
   function handleGET(command: string[]): Response {
-    const entry = store.getValue(command[1])
+    const entry: StoreEntry | undefined = store.getEntry(command[1])
     if (entry) {
-      return { type: ResponseType.bulkString, data: [entry] }
+      if (entry.type !== 'string') {
+        return { type: ResponseType.error, data: ["WRONGTYPE Operation against a key holding the wrong kind of value"] }
+      }
+
+      return { type: ResponseType.bulkString, data: [entry.value] }
     }
     else {
       return { type: ResponseType.null, data: [] }
@@ -69,6 +79,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     }
     return { type: ResponseType.integer, data: [count.toString()] }
   }
+
   function handleEXPIRE(command: string[]): Response {
     const now = new Date();
     const secondsToAdd = Number(command[2]);
@@ -77,6 +88,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     const expireResult = store.expireEntry(command[1], expireDate);
     return { type: ResponseType.integer, data: [expireResult.toString()] }
   }
+
   function handleConfigGet(command: string[]): Response {
     let result: Response[] = []
     for (let i = 2; i < command.length; i++) {
@@ -90,10 +102,12 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     }
     return { type: ResponseType.map, data: result }
   }
+
   function handleConfigSet(command: string[]): Response {
     store.setConfig(command[2], command[3])
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
+
   function handleINFO(command: string[]): Response {
     const lines = [`role: ${serverInfo.role}`,
     `port: ${serverInfo.port}`]
@@ -107,15 +121,19 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     const info = lines.join('\r\n')
     return { type: ResponseType.bulkString, data: [info] }
   }
+
   function handlePING(command: string[]): Response {
     return { type: ResponseType.simpleString, data: ["PONG"] }
   }
+
   function handleREPLCONF(command: string[]): Response {
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
+
   function handlePSYNC(command: string[]): Response {
     return { type: ResponseType.simpleString, data: [`FULLRESYNC ${serverInfo.master_repl_id} ${serverInfo.master_repl_offset}`] }
   }
+
   function handleMULTI(command: string[], socketInfo: SocketInfo): Response {
 
     if (socketInfo.isTransaction) {
@@ -124,6 +142,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     socketInfo.isTransaction = true;
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
+
   async function handleEXEC(command: string[], socketInfo: SocketInfo): Promise<Response> {
     if (!socketInfo.isTransaction) {
       return { type: ResponseType.error, data: ["EXEC without MULTI"] }
@@ -136,6 +155,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     socketInfo.commandsQueue = []
     return { type: ResponseType.array, data: execResult }
   }
+
   function handleDISCARD(command: string[], socketInfo: SocketInfo): Response {
     if (!socketInfo.isTransaction) {
       return { type: ResponseType.error, data: ["DISCARD without MULTI"] }
@@ -144,6 +164,35 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     socketInfo.commandsQueue = []
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
+
+  function handleINCR(command: string[]): Response {
+    const entry: StoreEntry | undefined = store.getEntry(command[1]);
+    if (entry) {
+      if (entry.type !== 'string' || Number.isFinite(parseFloat(entry.value))) {
+        return { type: ResponseType.error, data: ["value is not an integer or out of range"] }
+      }
+      const newValue = parseFloat(entry.value) + 1
+      store.updateEntry(command[1], newValue.toString(), entry.type)
+      return { type: ResponseType.integer, data: [newValue.toString()] }
+    }
+    store.insertEntry(command[1], "1", 'string')
+    return { type: ResponseType.integer, data: ["1"] }
+  }
+
+  function handleDECR(command: string[]): Response {
+    const entry: StoreEntry | undefined = store.getEntry(command[1]);
+    if (entry) {
+      if (entry.type !== 'string' || Number.isFinite(parseFloat(entry.value))) {
+        return { type: ResponseType.error, data: ["value is not an integer or out of range"] }
+      }
+      const newValue = parseFloat(entry.value) - 1
+      store.updateEntry(command[1], newValue.toString(), entry.type)
+      return { type: ResponseType.integer, data: [newValue.toString()] }
+    }
+    store.insertEntry(command[1], "0", 'string')
+    return { type: ResponseType.integer, data: ["0"] }
+  }
+
   async function handleCommand(command: string[], socketInfo: SocketInfo): Promise<Response> {
     if (socketInfo.isTransaction && command[0].toUpperCase() !== "EXEC" && command[0].toUpperCase() !== "DISCARD" && command[0].toUpperCase() !== "MULTI") {
       socketInfo.commandsQueue.push(command)
@@ -184,6 +233,10 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
         return handleEXEC(command, socketInfo);
       case "DISCARD":
         return handleDISCARD(command, socketInfo)
+      case "INCR":
+        return handleINCR(command)
+      case "DECR":
+        return handleDECR(command)
       default:
         return { type: ResponseType.error, data: [`unknown command ${command[0]}`] };
     }
