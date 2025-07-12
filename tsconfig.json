@@ -10,6 +10,8 @@
     "declaration": true
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "utilis",
+    "models"
   ]
 }
