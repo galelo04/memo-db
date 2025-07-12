@@ -1,9 +1,10 @@
 import { StoreEntry } from "./MemoStore.js";
 
-export type EntryType = 'string' | 'set';
+export type EntryType = 'string' | 'set' | 'hash';
 export type EntryTypeToValue = {
   string: string;
   set: Set<string>;
+  hash: Map<string, string>;
 };
 export interface KeyValueStore {
 

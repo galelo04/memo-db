@@ -23,7 +23,11 @@ const validCommands = new Set([
   "SREM",
   "SMEMBERS",
   "SCARD",
-  "SINTER"
+  "SINTER",
+  "HSET",
+  "HGET",
+  "HGETALL",
+  "HDEL",
 ]);
 const writeCommands = new Set([
   "SET",
@@ -32,7 +36,9 @@ const writeCommands = new Set([
   "INCR",
   "DECR",
   "SADD",
-  "SREM"
+  "SREM",
+  "HSET",
+  "HDEL",
 ])
 
 function isValidCommand(command: string): boolean {
@@ -232,7 +238,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
       for (let i = 2; i < command.length; i++) {
         entry.value.delete(command[i])
       }
-      return { type: ResponseType.integer, data: [(entry.value.size - initialLength).toString()] }
+      return { type: ResponseType.integer, data: [(initialLength - entry.value.size).toString()] }
     }
     return { type: ResponseType.integer, data: ["0"] }
   }
@@ -266,7 +272,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     return { type: ResponseType.integer, data: ["0"] }
   }
 
-  function handleINTER(command: string[]): Response {
+  function handleSINTER(command: string[]): Response {
     let resultSet: Set<string> | undefined = undefined;
 
     for (let i = 1; i < command.length; i++) {
@@ -306,6 +312,73 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
 
     return { type: ResponseType.set, data: result };
   }
+
+  function handleHSET(command: string[]): Response {
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'hash') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      let initialLength = entry.value.size;
+      for (let i = 2; i < command.length; i += 2) {
+        entry.value.set(command[i], command[i + 1])
+      }
+      return { type: ResponseType.integer, data: [(entry.value.size - initialLength).toString()] }
+    }
+    const map: Map<string, string> = new Map<string, string>();
+    for (let i = 2; i < command.length; i += 2) {
+      map.set(command[i], command[i + 1])
+    }
+    return { type: ResponseType.integer, data: [map.size.toString()] }
+  }
+
+  function handleHGET(command: string[]): Response {
+
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'hash') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      const field = entry.value.get(command[2])
+      if (field) {
+        return { type: ResponseType.bulkString, data: [field] }
+      }
+    }
+    return { type: ResponseType.null, data: [] }
+  }
+
+  function handleHDEL(command: string[]): Response {
+
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'hash') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      const initialLength = entry.value.size;
+      for (let i = 2; i < command.length; i++) {
+        entry.value.delete(command[i])
+      }
+      return { type: ResponseType.integer, data: [(initialLength - entry.value.size).toString()] }
+    }
+    return { type: ResponseType.integer, data: ["0"] }
+  }
+
+  function handleHGETALL(command: string[]): Response {
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'hash') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      const result: Response[] = []
+      for (const element of entry.value) {
+        result.push({ type: ResponseType.bulkString, data: [element[0]] })
+        result.push({ type: ResponseType.bulkString, data: [element[1]] })
+      }
+      return { type: ResponseType.map, data: result }
+    }
+    return { type: ResponseType.map, data: [] }
+  }
+
   async function handleCommand(command: string[], socketInfo: SocketInfo): Promise<Response> {
 
     if (socketInfo.isTransaction && command[0].toUpperCase() !== "EXEC" && command[0].toUpperCase() !== "DISCARD" && command[0].toUpperCase() !== "MULTI") {
@@ -360,7 +433,15 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
       case "SCARD":
         return handleSCARD(command)
       case "SINTER":
-        return handleINTER(command)
+        return handleSINTER(command)
+      case "HSET":
+        return handleHSET(command)
+      case "HGET":
+        return handleHGET(command)
+      case "HDEL":
+        return handleHDEL(command)
+      case "HGETALL":
+        return handleHGETALL(command)
       default:
         return { type: ResponseType.error, data: [`unknown command ${command[0]}`] };
     }

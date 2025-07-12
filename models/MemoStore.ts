@@ -4,6 +4,7 @@ import { EntryType, EntryTypeToValue } from './StoreInterface.js'
 export type StoreEntry =
   | { type: 'string'; value: string; expireDate?: Date }
   | { type: 'set'; value: Set<string>; expireDate?: Date }
+  | { type: 'hash'; value: Map<string, string>; expireDate?: Date }
 
 function createStoreEntry<K extends EntryType>(
   type: K,

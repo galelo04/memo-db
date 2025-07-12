@@ -37,7 +37,7 @@ export function formatResponse(response: Response): string {
     formatted += response.data.length + CRLF;
     for (const item of response.data) {
       if (!isResponse(item)) {
-        throw new Error("Invalid response item in array/map");
+        throw new Error("Invalid response item in set/array/map");
       }
       formatted += formatResponse(item);
     }
