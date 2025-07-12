@@ -2,6 +2,7 @@ export const ResponseType = {
   simpleString: "+",
   bulkString: "$",
   integer: ":",
+  set: "~",
   map: "%",
   array: "*",
   error: "-ERR ",
@@ -32,7 +33,7 @@ export function formatResponse(response: Response): string {
   const CRLF = '\r\n';
   let formatted = response.type;
 
-  if (response.type === ResponseType.array || response.type === ResponseType.map) {
+  if (response.type === ResponseType.set || response.type === ResponseType.array || response.type === ResponseType.map) {
     formatted += response.data.length + CRLF;
     for (const item of response.data) {
       if (!isResponse(item)) {
