@@ -220,10 +220,11 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
       }
       return { type: ResponseType.integer, data: [(entry.value.size - initialLength).toString()] }
     }
-    const set: Set<String> = new Set<String>();
+    const set: Set<string> = new Set<string>();
     for (let i = 2; i < command.length; i++) {
       set.add(command[i])
     }
+    store.insertEntry(command[1], set, 'set')
     return { type: ResponseType.integer, data: [set.size.toString()] }
   }
 
@@ -329,6 +330,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     for (let i = 2; i < command.length; i += 2) {
       map.set(command[i], command[i + 1])
     }
+    store.insertEntry(command[1], map, 'hash')
     return { type: ResponseType.integer, data: [map.size.toString()] }
   }
 

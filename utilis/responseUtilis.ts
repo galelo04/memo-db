@@ -34,7 +34,10 @@ export function formatResponse(response: Response): string {
   let formatted = response.type;
 
   if (response.type === ResponseType.set || response.type === ResponseType.array || response.type === ResponseType.map) {
-    formatted += response.data.length + CRLF;
+    let length = response.data.length;
+    if (response.type === ResponseType.map)
+      length /= 2
+    formatted += length + CRLF;
     for (const item of response.data) {
       if (!isResponse(item)) {
         throw new Error("Invalid response item in set/array/map");

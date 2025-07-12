@@ -5,7 +5,7 @@ import minimist from 'minimist';
 
 const argv = minimist(process.argv.slice(2))
 
-const client = net.createConnection({ port: Number(argv.port) | 8080 });
+const client = net.createConnection({ port: Number(argv.port) | 6379 });
 
 const rl = readline.createInterface({
   input: process.stdin,

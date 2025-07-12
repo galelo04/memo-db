@@ -6,7 +6,8 @@
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "tsc --watch",
-    "dev": "nodemon --watch src --ext ts --exec 'tsc && node dist/src/server.js'"
+    "dev": "node dist/src/server.js",
+    "clean": "rm -rf dist"
   },
   "keywords": [],
   "author": "",
@@ -20,8 +21,6 @@
   },
   "dependencies": {
     "cuid": "^3.0.0",
-    "minimist": "^1.2.8",
-    "nodemon": "^3.1.10",
-    "ts-node": "^10.9.2"
+    "minimist": "^1.2.8"
   }
 }
