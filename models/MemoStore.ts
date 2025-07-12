@@ -1,19 +1,27 @@
 import type { KeyValueStore } from './StoreInterface.js'
-export interface storeEntry {
+type EntryType = 'string' | 'number';
+export interface StoreEntry {
   value: any,
+  type: EntryType,
   expireDate?: Date
 }
 export class MemoStore implements KeyValueStore {
-  map: Map<string, storeEntry>
+  map: Map<string, StoreEntry>
   configMap: Map<string, string>
   constructor() {
-    this.map = new Map<string, storeEntry>();
+    this.map = new Map<string, StoreEntry>();
     this.configMap = new Map<string, string>();
     this.configMap.set("dir", "./dir")
     this.configMap.set("aof-fileName", "aof.txt")
   }
   insertEntry(key: string, value: any, expireDate?: Date): void {
-    this.map.set(key, { value, expireDate })
+    let type: EntryType
+    if (Number.isFinite(Number(value))) {
+      type = 'number'
+    } else {
+      type = 'string'
+    }
+    this.map.set(key, { value, type, expireDate })
   }
   getValue(key: string): any | undefined {
     if (this.map.has(key)) {
@@ -36,9 +44,9 @@ export class MemoStore implements KeyValueStore {
     return this.map.has(key)
   }
   expireEntry(key: string, expireDate: Date): number {
-    if (this.map.has(key)) {
-      const entry = this.map.get(key)
-      this.map.set(key, { value: entry?.value, expireDate })
+    const entry: StoreEntry | undefined = this.map.get(key)
+    if (entry) {
+      this.map.set(key, { expireDate, ...entry })
 
       return 1;
     }

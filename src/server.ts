@@ -14,6 +14,7 @@ import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUt
 async function main() {
 
   const argv = minimist(process.argv.slice(2))
+
   let memoServerInfo: MemoServerInfo;
   if (argv.replicaof) {
     const masterDetail = argv.replicaof.split(' ')
@@ -25,6 +26,7 @@ async function main() {
   const store = new MemoStore()
   const { handleCommand } = createCommandHandlers(store, memoServerInfo)
   const socketInfo: SocketInfo = { isTransaction: false, requesterType: 'client', commandsQueue: [] }
+
   if (memoServerInfo.role === "replica") {
     socketInfo.requesterType = 'master'
     connectToMaster(memoServerInfo, store, handleCommand, socketInfo)
@@ -37,8 +39,10 @@ async function main() {
   }
 
   const server = net.createServer((socket) => {
+
     const socketInfo: SocketInfo = { isTransaction: false, requesterType: 'client', commandsQueue: [] }
     let buffer = Buffer.alloc(0)
+
     console.log('client connected');
     socket.on('data', async (data) => {
 
