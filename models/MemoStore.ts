@@ -3,7 +3,6 @@ import { EntryType, EntryTypeToValue } from './StoreInterface.js'
 
 export type StoreEntry =
   | { type: 'string'; value: string; expireDate?: Date }
-  | { type: 'number'; value: number; expireDate?: Date }
   | { type: 'set'; value: Set<string>; expireDate?: Date }
 
 function createStoreEntry<K extends EntryType>(
@@ -34,11 +33,32 @@ export class MemoStore implements KeyValueStore {
     this.map.set(key, createStoreEntry(type, value, expireDate));
   }
 
-  getValue(key: string): any | undefined {
+  updateEntry<K extends EntryType>(
+    key: string,
+    newValue: EntryTypeToValue[K],
+    type: K,
+    newExpireDate?: Date
+  ): boolean {
+    const existing = this.map.get(key);
+    if (!existing || existing.type !== type) {
+      return false;
+    }
+
+    const updatedEntry: StoreEntry = createStoreEntry(
+      type,
+      newValue,
+      newExpireDate ?? existing.expireDate)
+
+    this.map.set(key, updatedEntry);
+    return true;
+  }
+
+
+  getEntry(key: string): StoreEntry | undefined {
     if (this.map.has(key)) {
       const entryExpireDate = this.map.get(key)?.expireDate;
       if (!entryExpireDate || (entryExpireDate && entryExpireDate > new Date()))
-        return this.map.get(key)?.value
+        return this.map.get(key)
       if (entryExpireDate && entryExpireDate < new Date())
         this.map.delete(key)
     }

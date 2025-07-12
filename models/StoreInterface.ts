@@ -1,9 +1,9 @@
-export type EntryType = 'string' | 'number' | 'set';
+import { StoreEntry } from "./MemoStore.js";
+
+export type EntryType = 'string' | 'set';
 export type EntryTypeToValue = {
   string: string;
-  number: number;
   set: Set<string>;
-  hash: Map<string, string>;
 };
 export interface KeyValueStore {
 
@@ -13,7 +13,13 @@ export interface KeyValueStore {
     type: K,
     expireDate?: Date
   ): void
-  getValue(key: string): any | undefined
+  updateEntry<K extends EntryType>(
+    key: string,
+    newValue: EntryTypeToValue[K],
+    type: K,
+    newExpireDate?: Date
+  ): boolean
+  getEntry(key: string): StoreEntry | undefined
   deleteEntry(key: string): number
   hasEntry(key: string): boolean
   expireEntry(key: string, expireDate: Date): number
