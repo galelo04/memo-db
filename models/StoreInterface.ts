@@ -26,5 +26,4 @@ export interface KeyValueStore {
   print(): void
   setConfig(key: string, value: string): void
   getConfig(key: string): string | undefined
-
 }

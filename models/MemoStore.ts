@@ -54,17 +54,19 @@ export class MemoStore implements KeyValueStore {
   }
 
 
-  getEntry(key: string): StoreEntry | undefined {
-    if (this.map.has(key)) {
-      const entryExpireDate = this.map.get(key)?.expireDate;
-      if (!entryExpireDate || (entryExpireDate && entryExpireDate > new Date()))
-        return this.map.get(key)
-      if (entryExpireDate && entryExpireDate < new Date())
-        this.map.delete(key)
-    }
-    return undefined
-  }
 
+  getEntry(key: string): StoreEntry | undefined {
+    const entry = this.map.get(key);
+    if (!entry) return undefined;
+
+    const { expireDate } = entry;
+
+    if (expireDate && expireDate < new Date()) {
+      this.map.delete(key);
+    }
+
+    return entry;
+  }
   deleteEntry(key: string): number {
     if (this.map.has(key)) {
       this.map.delete(key);

@@ -3,7 +3,6 @@ import { ResponseType } from './responseUtilis.js'
 import type { Response } from './responseUtilis.js'
 import { MemoServerInfo } from '../models/MemoServerInfo.js';
 import type { SocketInfo } from '../models/MemoServerInfo.js';
-import { EntryType } from '../models/StoreInterface.js';
 import { StoreEntry } from '../models/MemoStore.js';
 const validCommands = new Set([
   "SET",
@@ -19,22 +18,31 @@ const validCommands = new Set([
   "EXEC",
   "DISCARD",
   "INCR",
-  "DECR"
+  "DECR",
+  "SADD",
+  "SREM",
+  "SMEMBERS",
+  "SCARD",
+  "SINTER"
 ]);
 const writeCommands = new Set([
   "SET",
   "DEL",
   "EXPIRE",
   "INCR",
-  "DECR"
+  "DECR",
+  "SADD",
+  "SREM"
 ])
 
 function isValidCommand(command: string): boolean {
   return validCommands.has(command);
 }
+
 export function isWriteCommand(command: string): boolean {
   return writeCommands.has(command)
 }
+
 export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServerInfo) {
   function handleSET(command: string[]): Response {
     if (command.length === 3) {
@@ -56,6 +64,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     }
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
+
   function handleGET(command: string[]): Response {
     const entry: StoreEntry | undefined = store.getEntry(command[1])
     if (entry) {
@@ -193,7 +202,112 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
     return { type: ResponseType.integer, data: ["0"] }
   }
 
+  function handleSADD(command: string[]): Response {
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'set') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      let initialLength = entry.value.size;
+      for (let i = 2; i < command.length; i++) {
+        entry.value.add(command[i])
+      }
+      return { type: ResponseType.integer, data: [(entry.value.size - initialLength).toString()] }
+    }
+    const set: Set<String> = new Set<String>();
+    for (let i = 2; i < command.length; i++) {
+      set.add(command[i])
+    }
+    return { type: ResponseType.integer, data: [set.size.toString()] }
+  }
+
+  function handleSREM(command: string[]): Response {
+
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'set') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      let initialLength = entry.value.size;
+      for (let i = 2; i < command.length; i++) {
+        entry.value.delete(command[i])
+      }
+      return { type: ResponseType.integer, data: [(entry.value.size - initialLength).toString()] }
+    }
+    return { type: ResponseType.integer, data: ["0"] }
+  }
+
+  function handleSMEMEBERS(command: string[]): Response {
+    const result: Response[] = [];
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'set') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+
+      for (const value of entry.value) {
+        result.push({ type: ResponseType.bulkString, data: [value] })
+      }
+      return { type: ResponseType.set, data: result }
+    }
+    return { type: ResponseType.set, data: [] }
+  }
+
+  function handleSCARD(command: string[]): Response {
+
+    const entry = store.getEntry(command[1])
+    if (entry) {
+      if (entry.type !== 'set') {
+        return { type: ResponseType.error, data: ['WRONGTYPE Operation against a key holding the wrong kind of value'] }
+      }
+      return { type: ResponseType.integer, data: [entry.value.size.toString()] }
+    }
+
+    return { type: ResponseType.integer, data: ["0"] }
+  }
+
+  function handleINTER(command: string[]): Response {
+    let resultSet: Set<string> | undefined = undefined;
+
+    for (let i = 1; i < command.length; i++) {
+      const entry = store.getEntry(command[i]);
+      if (!entry) {
+        return { type: ResponseType.set, data: [] };
+      }
+      if (entry.type !== 'set') {
+        return {
+          type: ResponseType.error,
+          data: ['WRONGTYPE Operation against a key holding the wrong kind of value']
+        };
+      }
+      if (entry.value.size === 0) {
+        return { type: ResponseType.set, data: [] };
+      }
+
+      if (!resultSet) {
+        resultSet = new Set(entry.value);
+      } else {
+        const newSet: Set<string> = new Set();
+        for (const element of resultSet) {
+          if (entry.value.has(element)) {
+            newSet.add(element);
+          }
+        }
+        resultSet = newSet;
+      }
+    }
+
+    const result: Response[] = [];
+    if (resultSet) {
+      for (const value of resultSet) {
+        result.push({ type: ResponseType.bulkString, data: [value] });
+      }
+    }
+
+    return { type: ResponseType.set, data: result };
+  }
   async function handleCommand(command: string[], socketInfo: SocketInfo): Promise<Response> {
+
     if (socketInfo.isTransaction && command[0].toUpperCase() !== "EXEC" && command[0].toUpperCase() !== "DISCARD" && command[0].toUpperCase() !== "MULTI") {
       socketInfo.commandsQueue.push(command)
       return { type: ResponseType.simpleString, data: ["QUEUED"] }
@@ -237,6 +351,16 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
         return handleINCR(command)
       case "DECR":
         return handleDECR(command)
+      case "SADD":
+        return handleSADD(command)
+      case "SREM":
+        return handleSREM(command)
+      case "SMEMBERS":
+        return handleSMEMEBERS(command)
+      case "SCARD":
+        return handleSCARD(command)
+      case "SINTER":
+        return handleINTER(command)
       default:
         return { type: ResponseType.error, data: [`unknown command ${command[0]}`] };
     }
