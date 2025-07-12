@@ -1,8 +1,8 @@
-import type { KeyValueStore } from './storeInterface.js'
+import type { KeyValueStore } from '../models/StoreInterface.js'
 import { ResponseType } from './responseUtilis.js'
 import type { Response } from './responseUtilis.js'
-import { RedisServerInfo } from './RedisServerInfo.js';
-import type { SocketInfo } from './RedisServerInfo.js';
+import { MemoServerInfo } from '../models/MemoServerInfo.js';
+import type { SocketInfo } from '../models/MemoServerInfo.js';
 const validCommands = new Set([
   "SET",
   "GET",
@@ -29,7 +29,7 @@ function isValidCommand(command: string): boolean {
 export function isWriteCommand(command: string): boolean {
   return writeCommands.has(command)
 }
-export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisServerInfo) {
+export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServerInfo) {
   function handleSET(command: string[]): Response {
     if (command.length === 3) {
       store.insertEntry(command[1], command[2])
@@ -95,11 +95,16 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
   function handleINFO(command: string[]): Response {
-    const lines = [`role:${serverInfo.role}`,
-    `port:${serverInfo.port}`,
-    `master_replid:${serverInfo.master_replid}`,
-    `master_repl_offset:${serverInfo.master_repl_offset}`]
-    const info = lines.join('\n')
+    const lines = [`role: ${serverInfo.role}`,
+    `port: ${serverInfo.port}`]
+    if (serverInfo.role === 'master') {
+      lines.push(`#replicas: ${serverInfo.replicas.size}`)
+    } else {
+      lines.push(`master_replid: ${serverInfo.master_repl_id}`)
+      lines.push(`master_repl_offset: ${serverInfo.master_repl_offset}`)
+      lines.push(`master_details\r\nmaster_port: ${serverInfo.master_port}\r\nmaster_host: ${serverInfo.master_host} `)
+    }
+    const info = lines.join('\r\n')
     return { type: ResponseType.bulkString, data: [info] }
   }
   function handlePING(command: string[]): Response {
@@ -109,7 +114,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: RedisSer
     return { type: ResponseType.simpleString, data: ["OK"] }
   }
   function handlePSYNC(command: string[]): Response {
-    return { type: ResponseType.simpleString, data: [`FULLRESYNC ${serverInfo.master_replid} ${serverInfo.master_repl_offset}`] }
+    return { type: ResponseType.simpleString, data: [`FULLRESYNC ${serverInfo.master_repl_id} ${serverInfo.master_repl_offset}`] }
   }
   function handleMULTI(command: string[], socketInfo: SocketInfo): Response {
 

@@ -1,13 +1,12 @@
 {
-  "name": "MemoDB",
+  "name": "memo-db",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "tsc --watch",
-    "dev": "nodemon --watch src --ext ts --exec ts-node"
+    "dev": "nodemon --watch src --ext ts --exec 'tsc && node dist/src/server.js'"
   },
   "keywords": [],
   "author": "",

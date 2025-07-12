@@ -1,12 +1,12 @@
 import { readFileSync } from "fs";
-export interface tryParseResult {
+export interface ParseResult {
   fullCommandText?: string,
   remainingBuffer: Buffer,
   parsedCommand?: string[],
   error?: string
 }
 
-export function tryParse(buffer: Buffer): tryParseResult {
+export function tryParse(buffer: Buffer): ParseResult {
   let bufferPointer = 0
   let result: string[] = []
   if (String.fromCharCode(buffer[0]) !== '*') {

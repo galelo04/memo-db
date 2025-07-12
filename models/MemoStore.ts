@@ -1,9 +1,9 @@
-import type { KeyValueStore } from './storeInterface.js'
+import type { KeyValueStore } from './StoreInterface.js'
 export interface storeEntry {
   value: any,
   expireDate?: Date
 }
-export class RedisStore implements KeyValueStore {
+export class MemoStore implements KeyValueStore {
   map: Map<string, storeEntry>
   configMap: Map<string, string>
   constructor() {

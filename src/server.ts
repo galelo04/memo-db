@@ -1,9 +1,9 @@
 import { parseAOFFile } from '../utilis/commandParsing.js'
-import { RedisStore } from '../utilis/redisStore.js'
+import { MemoStore } from '../models/MemoStore.js'
 import { createCommandHandlers } from '../utilis/commandHandlers.js'
 import net from 'net'
-import { RedisServerInfo, RedisServerInfoBuilder } from '../utilis/RedisServerInfo.js'
-import type { SocketInfo } from '../utilis/RedisServerInfo.js'
+import { MemoServerInfo, MemoServerInfoBuilder } from '../models/MemoServerInfo.js'
+import type { SocketInfo } from '../models/MemoServerInfo.js'
 import minimist from 'minimist'
 import cuid from 'cuid'
 import { formatResponse, ResponseType } from '../utilis/responseUtilis.js'
@@ -14,20 +14,20 @@ import { processBuffer, connectToMaster, masterHandle } from '../utilis/serverUt
 async function main() {
 
   const argv = minimist(process.argv.slice(2))
-  let redisServerInfo: RedisServerInfo;
+  let memoServerInfo: MemoServerInfo;
   if (argv.replicaof) {
     const masterDetail = argv.replicaof.split(' ')
-    redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 6379).setRole("replica").setMasterDetails(masterDetail[0], masterDetail[1]).setMasterId("-1").build()
+    memoServerInfo = new MemoServerInfoBuilder().setPort(+(argv.port) | 6379).setRole("replica").setMasterDetails(masterDetail[0], masterDetail[1]).setMasterReplicationId("-1").build()
   } else {
-    redisServerInfo = new RedisServerInfoBuilder().setPort(+(argv.port) | 6379).setRole("master").setMasterId(cuid()).setMasterOffset(0).build()
+    memoServerInfo = new MemoServerInfoBuilder().setPort(+(argv.port) | 6379).setRole("master").setMasterReplicationId(cuid()).setMasterReplicationOffset(0).build()
   }
 
-  const store = new RedisStore()
-  const { handleCommand } = createCommandHandlers(store, redisServerInfo)
+  const store = new MemoStore()
+  const { handleCommand } = createCommandHandlers(store, memoServerInfo)
   const socketInfo: SocketInfo = { isTransaction: false, requesterType: 'client', commandsQueue: [] }
-  if (redisServerInfo.role === "replica") {
+  if (memoServerInfo.role === "replica") {
     socketInfo.requesterType = 'master'
-    connectToMaster(redisServerInfo, store, handleCommand, socketInfo)
+    connectToMaster(memoServerInfo, store, handleCommand, socketInfo)
   } else {
     //reading persistance file and apply commands to the store
     const allCommands: string[][] = parseAOFFile('./dir/aof.txt')
@@ -58,15 +58,15 @@ async function main() {
         const formatedResponse = formatResponse(response)
 
         socket.write(formatedResponse)
-        if (redisServerInfo.role === "master") {
-          masterHandle(formatedResponse, parsingResult.fullCommandText, parsingResult.parsedCommand, redisServerInfo, socket)
+        if (memoServerInfo.role === "master") {
+          masterHandle(formatedResponse, parsingResult.fullCommandText, parsingResult.parsedCommand, memoServerInfo, socket)
         }
       }
     })
   })
 
-  server.listen(redisServerInfo.port, () => {
-    console.log(`server listening on port ${redisServerInfo.port}`);
+  server.listen(memoServerInfo.port, () => {
+    console.log(`server listening on port ${memoServerInfo.port}`);
   });
 }
 
