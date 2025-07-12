@@ -183,7 +183,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
   function handleINCR(command: string[]): Response {
     const entry: StoreEntry | undefined = store.getEntry(command[1]);
     if (entry) {
-      if (entry.type !== 'string' || Number.isFinite(parseFloat(entry.value))) {
+      if (entry.type !== 'string' || !Number.isFinite(parseFloat(entry.value))) {
         return { type: ResponseType.error, data: ["value is not an integer or out of range"] }
       }
       const newValue = parseFloat(entry.value) + 1
@@ -197,7 +197,7 @@ export function createCommandHandlers(store: KeyValueStore, serverInfo: MemoServ
   function handleDECR(command: string[]): Response {
     const entry: StoreEntry | undefined = store.getEntry(command[1]);
     if (entry) {
-      if (entry.type !== 'string' || Number.isFinite(parseFloat(entry.value))) {
+      if (entry.type !== 'string' || !Number.isFinite(parseFloat(entry.value))) {
         return { type: ResponseType.error, data: ["value is not an integer or out of range"] }
       }
       const newValue = parseFloat(entry.value) - 1
