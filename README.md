@@ -1,318 +1,257 @@
-# 🗄️ Memo-DB
+# Memo-DB
 
-**A blazing-fast, Redis-compatible mini database built from scratch in TypeScript**
+Memo-DB is an in-memory key-value database written in TypeScript that implements a subset of the Redis Serialization Protocol (RESP). It provides TCP socket connection handling, core Redis-compatible data structures, append-only persistence, transaction queuing, and master-replica command forwarding.
 
-> *Because sometimes you need Redis, but you want to understand every byte of it.*
+## Key Features
 
-Memo-DB is a lightweight, high-performance Redis clone that implements the Redis Serialization Protocol (RESP3) with full master-replica replication, transactions, and persistence. Perfect for learning, prototyping, or scenarios where you need a Redis-compatible database without the complexity.
+- Data Structure Support: Supports Strings (SET with EX/PX, GET, DEL, EXPIRE, INCR, DECR), Sets (SADD, SREM, SMEMBERS, SCARD, SINTER), and Hashes (HSET, HGET, HGETALL, HDEL).
+- RESP Parsing and Formatting: Parses incoming RESP bulk string array commands over TCP and formats responses using RESP data types including Simple Strings, Bulk Strings, Integers, Arrays, Maps, Sets, Errors, and Nulls.
+- Append-Only File (AOF) Persistence: Logs write operations to disk (`./dir/aof.txt`) and replays stored commands during server startup to restore state.
+- Master-Replica Replication: Supports master and replica roles with initial full synchronization (PSYNC handshake and AOF buffer transfer) and real-time write command propagation to replica nodes.
+- Basic Transaction Queuing: Supports sequential command queuing and execution using MULTI, EXEC, and DISCARD.
+- Interactive CLI Client: Includes a lightweight command-line interface for communicating with a running server instance.
 
-## 🌟 Why Memo-DB?
+## Architecture and Tech Stack
 
-- **🚀 Lightning Fast**: Built with performance in mind using Node.js and TypeScript
-- **🔧 Redis Compatible**: Implements RESP3 protocol for seamless integration with existing Redis clients
-- **🐳 Docker Ready**: One command deployment with Docker
-- **📦 TypeScript Native**: Full type safety and excellent developer experience
-- **🔄 Real Replication**: Master-replica setup with automatic synchronization
-- **💾 Persistent**: AOF (Append-Only File) persistence keeps your data safe
+### Tech Stack
 
-## 📋 Features
+- Language: TypeScript 5.8 (ESM target ES2020)
+- Runtime: Node.js (v20+)
+- Networking: Node.js `net` module (TCP socket server and client)
+- CLI Parsing: Minimist
+- ID Generation: Cuid
+- Containerization: Docker (multi-stage build with `node:20` and `node:20-slim`)
 
-### Core Database Operations
-- **String Operations**: `SET`, `GET`, `DEL`, `EXPIRE`, `INCR`, `DECR`
-- **Set Operations**: `SADD`, `SREM`, `SMEMBERS`, `SCARD`, `SINTER`
-- **Hash Operations**: `HSET`, `HGET`, `HGETALL`, `HDEL`
-- **Transactions**: `MULTI`, `EXEC`, `DISCARD` with full ACID compliance
-- **Server Management**: `PING`, `INFO`, `CONFIG`
+### Component Overview
 
-### Advanced Features
-- **🔄 Master-Replica Replication**: Full synchronization with automatic failover
-- **📝 AOF Persistence**: Append-Only File for crash recovery
-- **🔐 RESP3 Protocol**: Latest Redis protocol implementation
-- **⚡ Transactions**: Atomic operations with rollback support
-- **🎛️ Runtime Configuration**: Dynamic configuration updates
+- `src/server.ts`: Entry point for server startup. Initializes configuration, loads AOF persistence data into memory, starts the TCP server, handles incoming socket connections, and manages replication streaming.
+- `src/client.ts`: Interactive command-line client reading input from standard input and communicating with the server over TCP sockets.
+- `models/MemoStore.ts`: In-memory data store containing key-value mappings (Strings, Sets, Hashes) with TTL expiration checking and configuration storage.
+- `models/MemoServerInfo.ts`: Server state metadata including role (master/replica), port, replication IDs, offsets, and connected replica sockets.
+- `utilis/commandParsing.ts`: RESP protocol frame parser for incoming TCP stream buffers and AOF replay processing.
+- `utilis/commandHandlers.ts`: Command execution handlers for data operations, replication protocols, transaction queuing, and server configuration.
+- `utilis/responseUtilis.ts`: RESP response formatter for socket writes.
+- `utilis/serverUtilis.ts`: Handshake and sync procedures for replica nodes, buffer processing helpers, and write forwarding logic for master nodes.
 
-## 🚀 Quick Start
+## Getting Started and Installation
 
-### 🐳 Docker Deployment (Recommended)
+### Prerequisites
 
+- Node.js 20.x or higher
+- npm 10.x or higher
+- Docker (optional)
+
+### Local Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/galelo04/memo-db.git
+   cd memo-db
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Build the TypeScript source code:
+   ```bash
+   npm run build
+   ```
+
+### Running with Docker
+
+Build the Docker image:
 ```bash
-# Pull and run the latest version
 docker build -t memo-db .
+```
 
-# Or build locally
-git clone https://github.com/galelo04/memo-db.git
-cd memo-db
-docker build -t memo-db .
+Run a master instance on default port 6379:
+```bash
 docker run -p 6379:6379 memo-db
 ```
 
-### 📦 Local Installation
-
+Run a replica instance pointing to a master node:
 ```bash
-# Clone and install
-git clone https://github.com/galelo04/memo-db.git
-cd memo-db
-npm install
+docker run -p 6380:6380 memo-db node ./dist/src/server.js --port 6380 --replicaof "host.docker.internal 6379"
+```
 
-# Build and start
-npm run build
+## Usage and Examples
+
+### Starting the Master Server
+
+Start the server on default port 6379:
+```bash
 npm start
-
-# Custom configuration
-npm start -- --port 6380
 ```
 
-## 🎯 Client Library
-
-**Meet [`memo-db-client`](https://github.com/galelo04/memo-db-client)** - The official TypeScript client library for seamless integration:
-
+Start the server on a custom port:
 ```bash
-npm install memo-db-client
+node dist/src/server.js --port 6380
 ```
 
-### 💻 Client Usage
+### Starting a Replica Server
+
+Start a replica node connected to a master server running on localhost:6379:
+```bash
+node dist/src/server.js --port 6381 --replicaof "localhost 6379"
+```
+
+### Using the Interactive CLI Client
+
+Connect the included interactive CLI client to a local instance:
+```bash
+node dist/src/client.js --port 6379
+```
+
+### Standalone TypeScript Client Library
+
+For programmatic integration in Node.js or TypeScript applications, an official client library is maintained in a separate repository: [galelo04/memo-db-client](https://github.com/galelo04/memo-db-client).
 
 ```typescript
 import { createClient } from 'memo-db-client';
 
-// Create and connect 
-const client = createClient(); //  defaults port:6379 host:localhost
-
+const client = createClient({ host: 'localhost', port: 6379 });
 await client.connect();
 
-// String operations
-await client.set('user:1001', 'john_doe');
+await client.set('user:1001', 'Alice');
 const user = await client.get('user:1001');
-console.log(`Welcome, ${user}!`);
-
-// Atomic operations
-await client.set('counter', '0');
-const newCount = await client.incr('counter');
-console.log(`Visitor #${newCount}`);
-
-// Expiration
-await client.set('session:abc123', 'user_data');
-await client.expire('session:abc123', 3600); // 1 hour TTL
-
-// Bulk operations
-await client.del(['old_key1', 'old_key2', 'temp_data']);
-
-// Server health
-const serverInfo = await client.info();
-console.log(serverInfo)
-
-// Graceful shutdown
-await client.quit();
+console.log(user);
 ```
 
-### 🔄 Advanced Client Features
+### Command Reference and Wire Examples
 
-```typescript
-// Connection with retry logic
-const client = createClient({
-  host: 'localhost',
-  port: 6379,
-});
+#### String Operations
 
-// Event handling
-client.on('connect', () => console.log('Connected to Memo-DB'));
-client.on('error', (err) => console.error('Connection error:', err));
-client.on('disconnect', () => console.log('Disconnected'));
+- `SET key value [EX seconds] [PX milliseconds]`: Set key value with optional expiration time.
+  ```text
+  > SET user:1001 Alice EX 60
+  +OK
+  ```
 
-// Health monitoring
-const ping = await client.ping();
-if (ping === 'PONG') {
-  console.log('✅ Server is healthy');
-}
+- `GET key`: Retrieve value for key.
+  ```text
+  > GET user:1001
+  $5
+  Alice
+  ```
+
+- `INCR key`: Increment integer string value.
+  ```text
+  > INCR visits
+  :1
+  ```
+
+- `DECR key`: Decrement integer string value.
+  ```text
+  > DECR visits
+  :0
+  ```
+
+- `EXPIRE key seconds`: Set key expiration in seconds.
+  ```text
+  > EXPIRE user:1001 300
+  :1
+  ```
+
+- `DEL key [key ...]`: Delete one or more keys.
+  ```text
+  > DEL user:1001 visits
+  :2
+  ```
+
+#### Set Operations
+
+- `SADD key member [member ...]`: Add members to set.
+  ```text
+  > SADD tags db typescript
+  :2
+  ```
+
+- `SREM key member [member ...]`: Remove members from set.
+  ```text
+  > SREM tags db
+  :1
+  ```
+
+- `SMEMBERS key`: Retrieve set members.
+  ```text
+  > SMEMBERS tags
+  ~1
+  $10
+  typescript
+  ```
+
+- `SCARD key`: Get member count of set.
+  ```text
+  > SCARD tags
+  :1
+  ```
+
+- `SINTER key [key ...]`: Intersect multiple sets.
+  ```text
+  > SINTER tags features
+  ~0
+  ```
+
+#### Hash Operations
+
+- `HSET key field value [field value ...]`: Set hash fields.
+  ```text
+  > HSET user:profile name Bob role engineer
+  :2
+  ```
+
+- `HGET key field`: Retrieve hash field value.
+  ```text
+  > HGET user:profile name
+  $3
+  Bob
+  ```
+
+- `HGETALL key`: Retrieve all hash fields and values.
+  ```text
+  > HGETALL user:profile
+  %2
+  $4
+  name
+  $3
+  Bob
+  $4
+  role
+  $8
+  engineer
+  ```
+
+- `HDEL key field [field ...]`: Delete fields from hash.
+  ```text
+  > HDEL user:profile role
+  :1
+  ```
+
+#### Transactions
+
+- `MULTI`: Start transaction queue.
+- `EXEC`: Execute queued commands sequentially.
+- `DISCARD`: Flush queued transaction commands.
+
+Example transaction flow:
+```text
+> MULTI
++OK
+> SET count 10
++QUEUED
+> INCR count
++QUEUED
+> EXEC
+*2
++OK
+:11
 ```
 
-## 🏗️ Architecture Deep Dive
+#### Server Operations
 
-### 🧠 Core Components
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   TCP Server    │    │  Command        │    │   Data Store    │
-│   (RESP3)       │◄──►│  Handlers       │◄──►│   (Memory)      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Replication   │    │  Transactions   │    │   Persistence   │
-│   Master/Slave  │    │  (MULTI/EXEC)   │    │   (AOF)         │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-### 🔄 RESP3 Protocol Implementation
-
-Memo-DB implements the Redis Serialization Protocol version 3 (RESP3), providing:
-
-- **Type Safety**: Strict typing for all Redis data types
-- **Backwards Compatibility**: Full compatibility with RESP2 clients
-- **Enhanced Features**: Better error handling and metadata support
-- **Performance**: Optimized parsing and serialization
-
-```typescript
-// RESP3 Protocol Examples
-"+OK\r\n"                    // Simple String
-"-ERR unknown command\r\n"   // Error
-":1000\r\n"                  // Integer
-"$5\r\nhello\r\n"           // Bulk String
-"*2\r\n$4\r\necho\r\n$5\r\nhello\r\n"  // Array
-```
-
-## 🎛️ Server Configuration
-
-### 🚀 Master Server
-
-```bash
-# Start master on default port
-node ./dist/src/server.js
-
-# Custom port
-node ./dist/src/server.js --port 6379
-
-# With Docker
-docker run -p 6379:6379 memo-db
-```
-
-### 🔄 Replica Server
-
-```bash
-# Start replica
-node ./dist/src/server.js --port 6380 --replicaof "localhost 6379"
-
-# Multiple replicas
-node ./dist/src/server.js --port 6381 --replicaof "localhost 6379"
-node ./dist/src/server.js --port 6382 --replicaof "localhost 6379"
-
-# With Docker
-docker run -p 6380:6380 memo-db node ./dist/src/server.js --port 6380 --replicaof "host.docker.internal 6379"
-```
-
-## 🛠️ Command Reference
-
-### 📝 String Commands
-```bash
-SET key value [EX seconds] [PX milliseconds]
-GET key
-DEL key [key ...]
-EXPIRE key seconds
-INCR key
-DECR key
-```
-
-### 🗂️ Set Commands
-```bash
-SADD key member [member ...]
-SREM key member [member ...]
-SMEMBERS key
-SCARD key
-SINTER key [key ...]
-```
-
-### 🏷️ Hash Commands
-```bash
-HSET key field value [field value ...]
-HGET key field
-HGETALL key
-HDEL key field [field ...]
-```
-
-### 💼 Transaction Commands
-```bash
-MULTI
-EXEC
-DISCARD
-```
-
-### 🔧 Server Commands
-```bash
-PING [message]
-INFO [section]
-CONFIG GET parameter
-CONFIG SET parameter value
-```
-
-## Architecture
-
-### Core Components
-
-- **MemoStore**: In-memory key-value store with support for multiple data types
-- **CommandHandlers**: Redis command implementation and processing
-- **ServerUtils**: Replication and master-replica communication
-- **ResponseUtils**: Redis protocol response formatting
-- **CommandParsing**: RESP protocol parsing
-
-### Data Types Support
-
-- **String**: Basic string values with optional expiration
-- **Set**: Unordered collection of unique strings
-- **Hash**: Key-value pairs (field-value mappings)
-
-### Persistence
-
-- **AOF (Append-Only File)**: All write commands are logged to `./dir/aof.txt`
-- **Replication Log**: Replica synchronization data stored in `./dir/replication.txt`
-
-## Configuration
-
-### Command Line Arguments
-
-- `--port`: Server port (default: 6379)
-- `--replicaof`: Master server details for replica mode (format: "host port")
-
-### Runtime Configuration
-
-```
-CONFIG SET dir "/custom/directory"
-CONFIG SET aof-fileName "custom-aof.txt"
-CONFIG GET dir
-CONFIG GET aof-fileName
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how to get started:
-
-1. **Fork & Clone**: Fork the repo and clone locally
-2. **Install**: Run `npm install` to install dependencies  
-3. **Develop**: Make your changes with tests
-4. **Submit**: Create a pull request with a clear description
-
-### 🎯 Areas for Contribution
-- [ ] Additional Redis commands (LISTS, STREAMS)
-- [ ] Lua scripting support
-- [ ] Clustering capabilities
-- [ ] Performance optimizations
-- [ ] Better monitoring tools
-
-## 📚 Learning Resources
-
-- **Networking**: TCP protocol and connection handling
-- **Replication**: Master-slave architectures and consistency models
-- **Persistence**: Write-ahead logs and crash recovery
-
-## 🐛 Known Limitations 
-
-- **Clustering**: No Redis Cluster support yet
-- **Pub/Sub**: Publish/Subscribe not implemented
-- **Lua**: No Lua scripting support
-- **Modules**: No module system
-- **Streams**: Redis Streams not supported
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## 🙏 Acknowledgments
-
-- Redis team for the amazing database design
-- Node.js community for the excellent ecosystem
-- TypeScript team for making JavaScript bearable 😉
-
----
-
-**Ready to memo-ize your data?** 🚀
-
-[⭐ Star us on GitHub](https://github.com/galelo04/memo-db) 
+- `PING`: Verify server responsiveness. Returns `+PONG`.
+- `INFO`: Return server metadata including role, port, replica count, or master replication offset.
+- `CONFIG GET parameter`: Retrieve runtime configuration parameter (`dir`, `aof-fileName`).
+- `CONFIG SET parameter value`: Set runtime configuration parameter.
